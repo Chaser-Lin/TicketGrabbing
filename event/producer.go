@@ -24,7 +24,7 @@ func NewProducer() (*Producer, error) {
 	//使用配置,新建一个异步生产者
 	asyncProducer, err := sarama.NewAsyncProducer([]string{kafkaConf.Address}, config)
 	if err != nil {
-		log.Fatal("NewProducer NewAsyncProducer err: ", err)
+		log.Println("NewProducer NewAsyncProducer err: ", err)
 		return nil, err
 	}
 
