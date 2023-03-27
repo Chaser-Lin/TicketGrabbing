@@ -18,6 +18,5 @@ func Migration() {
 	if err != nil {
 		log.Fatal("创建数据库表失败")
 	}
-
 	fmt.Println("创建数据库表成功")
 }

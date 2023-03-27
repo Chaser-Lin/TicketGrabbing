@@ -1,13 +1,13 @@
 SHELL=cmd.exe
 
 zookeeper:
-	D:\Kafka\kafka_2.13-3.4.0\bin\windows\zookeeper-server-start.bat D:\Kafka\kafka_2.13-3.4.0\config\zookeeper.properties
+	D:\kafka\kafka_2.13-3.4.0\bin\windows\zookeeper-server-start.bat D:\kafka\kafka_2.13-3.4.0\config\zookeeper.properties
 
 kafka:
-	D:\Kafka\kafka_2.13-3.4.0\bin\windows\kafka-server-start.bat D:\Kafka\kafka_2.13-3.4.0\config\server.properties
+	D:\kafka\kafka_2.13-3.4.0\bin\windows\kafka-server-start.bat D:\kafka\kafka_2.13-3.4.0\config\server.properties
 
-redis:
-	D:\Redis\Redis-x64-5.0.10\redis-server.exe --service-start
+deleteKafkaLogs:
+	rd /Q /S D:\kafka\kafkalogs
 
 server:
 	go run main.go

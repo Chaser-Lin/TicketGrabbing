@@ -10,8 +10,8 @@ import (
 )
 
 const (
-	AdminID   = 1
-	AdminName = "admin"
+	AdminID    = 1
+	AdminEmail = "admin@admin.com"
 )
 
 func AdminAuth() gin.HandlerFunc {
@@ -53,7 +53,7 @@ func AdminAuth() gin.HandlerFunc {
 			return
 		}
 
-		if accessPayload.UserID != AdminID || accessPayload.Email != AdminName {
+		if accessPayload.UserID != AdminID || accessPayload.Email != AdminEmail {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, response.Res{
 				Code: response.Fail,
 				Msg:  fmt.Sprintf("登录的用户(%s)并非管理员，无法进行此操作!", accessPayload.Email),

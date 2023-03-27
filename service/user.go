@@ -7,6 +7,7 @@ import (
 	"Project/MyProject/utils"
 	"github.com/go-sql-driver/mysql"
 	"gorm.io/gorm"
+	"log"
 )
 
 // 用户登录服务参数
@@ -57,6 +58,7 @@ func NewUserServices(userDal dal.UserDalImplement) UserServiceImplement {
 
 /*
 管理员账户admin
+
 	id = 1
 	username = admin
 	password = admin123456
@@ -64,6 +66,7 @@ func NewUserServices(userDal dal.UserDalImplement) UserServiceImplement {
 */
 const (
 	AdminID       = 1
+	AdminName     = "admin"
 	AdminEmail    = "admin@admin.com"
 	AdminPassword = "admin123456"
 )
@@ -137,7 +140,7 @@ func (u *UserService) GetUserInfo(userID int) (*models.User, error) {
 }
 
 func (u *UserService) UpdateUserInfo(service *UpdateUserInfoService) error {
-	var hashedPassword  string
+	var hashedPassword string
 	var err error
 	if service.NewPassword != "" {
 		hashedPassword, err = utils.HashPassword(service.NewPassword)
@@ -170,4 +173,22 @@ func (u *UserService) CheckUserExist(email string) (exist bool, err error) {
 		return false, response.ErrDbOperation
 	}
 	return true, response.ErrEmailExist
+}
+
+func CreateAdmin() {
+	userDal := dal.NewUserDal()
+	if _, err := userDal.GetUserByEmail(AdminEmail); err == gorm.ErrRecordNotFound {
+		hashedPassword, err := utils.HashPassword(AdminPassword)
+		if err != nil {
+			log.Fatal("CreateAdmin err: ", err)
+		}
+		admin := &models.User{
+			Username:       AdminName,
+			HashedPassword: hashedPassword,
+			Email:          AdminEmail,
+		}
+		if err = userDal.AddUser(admin); err != nil {
+			log.Fatal("创建管理员账户失败")
+		}
+	}
 }
