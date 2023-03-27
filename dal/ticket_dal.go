@@ -11,7 +11,7 @@ type TicketDalImplement interface {
 	GetTicket(ticketID int) (*models.Ticket, error)
 	AddTicket(ticket *models.Ticket) error
 	DeleteTicket(ticketID int) error
-	GetTickets(start, end string) ([]models.Ticket, error)
+	GetTickets(start, end string, date string) ([]models.Ticket, error)
 	GetTicketsOnSale(start, end string, now time.Time) ([]models.Ticket, error)
 	GetAllTickets() ([]models.Ticket, error)
 	GetAllTicketsOnSale(now time.Time) ([]models.Ticket, error)
@@ -54,9 +54,9 @@ func (t *TicketDal) GetTicketsOnSale(start, end string, now time.Time) ([]models
 	return tickets, err
 }
 
-func (t *TicketDal) GetTickets(start, end string) ([]models.Ticket, error) {
+func (t *TicketDal) GetTickets(start, end string, date string) ([]models.Ticket, error) {
 	tickets := make([]models.Ticket, 0)
-	err := t.DB.Find(&tickets, "start = ? AND end = ?", start, end).Error
+	err := t.DB.Find(&tickets, "start = ? AND end = ? AND Date(departure_time) = ?", start, end, date).Error
 	return tickets, err
 }
 

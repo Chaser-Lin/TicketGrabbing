@@ -9,7 +9,7 @@ import (
 )
 
 type Config struct {
-	Username string `yaml:"Email"`
+	Username string `yaml:"Username"`
 	Password string `yaml:"Password"`
 	Address  string `yaml:"Address"`
 	Port     int    `yaml:"Port"`

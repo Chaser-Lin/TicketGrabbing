@@ -144,5 +144,8 @@ func (manager *VerifyCodeManager) SendVerifyCodeToEmail(email string) error {
 	`, email, currentTime, verifyCode)
 
 	err := sendEmail(email, RegisterEmailSubject, content)
-	return err
+	if err != nil {
+		return response.ErrInvalidEmail
+	}
+	return nil
 }

@@ -21,7 +21,7 @@ func main() {
 	}
 
 	// 初始化Mysql数据库连接
-	err = db.Init(config.Conf.MySql)
+	err = db.Init(config.Conf.Mysql)
 	if err != nil {
 		log.Fatal("Mysql连接错误:", err)
 	}

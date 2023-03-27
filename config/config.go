@@ -9,7 +9,7 @@ import (
 var Conf *Config
 
 type Config struct {
-	MySql             db.Config    `yaml:"MySql"`
+	Mysql             db.Config    `yaml:"Mysql"`
 	Redis             cache.Config `yaml:"Redis"`
 	Kafka             event.Config `yaml:"Kafka"`
 	ServerPort        string       `yaml:"ServerPort"`

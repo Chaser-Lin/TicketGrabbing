@@ -32,6 +32,13 @@ type AddTicketService struct {
 type ListTicketsService struct {
 	Start string `json:"start" form:"start" binding:"required"`
 	End   string `json:"end" form:"end" binding:"required"`
+	Date  string `json:"date" form:"date" binding:"required"`
+}
+
+// 获取指定路线在售车票服务参数
+type ListTicketsOnSaleService struct {
+	Start string `json:"start" form:"start" binding:"required"`
+	End   string `json:"end" form:"end" binding:"required"`
 }
 
 // 获取指定id车票服务参数
@@ -44,7 +51,7 @@ type TicketServiceImplement interface {
 	AddTicket(*AddTicketService) error
 	GetTicket(ticketID int) (*models.Ticket, error)
 	ListTickets(*ListTicketsService) ([]models.Ticket, error)
-	ListTicketsOnSale(*ListTicketsService) ([]models.Ticket, error)
+	ListTicketsOnSale(*ListTicketsOnSaleService) ([]models.Ticket, error)
 	SubNumberOne(ticketID int) (err error)
 	AddNumberOne(ticketID int) (err error)
 	GetAllTickets() ([]models.Ticket, error)
@@ -132,7 +139,7 @@ func (t *TicketService) GetAllTicketsOnSale() ([]models.Ticket, error) {
 }
 
 func (t *TicketService) ListTickets(service *ListTicketsService) ([]models.Ticket, error) {
-	tickets, err := t.TicketDal.GetTickets(service.Start, service.End)
+	tickets, err := t.TicketDal.GetTickets(service.Start, service.End, service.Date)
 	if err == gorm.ErrRecordNotFound {
 		return nil, response.EmptyTicketList
 	} else if err != nil {
@@ -141,7 +148,7 @@ func (t *TicketService) ListTickets(service *ListTicketsService) ([]models.Ticke
 	return tickets, nil
 }
 
-func (t *TicketService) ListTicketsOnSale(service *ListTicketsService) ([]models.Ticket, error) {
+func (t *TicketService) ListTicketsOnSale(service *ListTicketsOnSaleService) ([]models.Ticket, error) {
 	tickets, err := t.TicketDal.GetTicketsOnSale(service.Start, service.End, time.Now())
 	if err == gorm.ErrRecordNotFound {
 		return nil, response.EmptyOnSaleTicketList

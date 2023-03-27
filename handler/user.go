@@ -243,7 +243,7 @@ func (handler *UserHandler) GetUserInfo(ctx *gin.Context) {
 func (handler *UserHandler) ListTicketsOnSale(ctx *gin.Context) {
 	var listTicketService service.ListTicketsService
 	if err := ctx.ShouldBind(&listTicketService); err == nil {
-		if tickets, err := handler.TicketService.ListTicketsOnSale(&listTicketService); err == nil {
+		if tickets, err := handler.TicketService.ListTickets(&listTicketService); err == nil {
 			R.Ok(ctx, "查询当前在售车票信息成功", gin.H{
 				"tickets": tickets,
 			})

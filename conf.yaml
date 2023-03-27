@@ -1,4 +1,4 @@
-MySql:
+Mysql:
   Username: "root"
   Password: "123456"
   Address: "localhost"

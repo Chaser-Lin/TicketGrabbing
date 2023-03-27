@@ -6,10 +6,13 @@ zookeeper:
 kafka:
 	D:\Kafka\kafka_2.13-3.4.0\bin\windows\kafka-server-start.bat D:\Kafka\kafka_2.13-3.4.0\config\server.properties
 
+clearKafkaLogs:
+	rmdir /S /Q D:\Kafka\kafkalogs
+
 redis:
 	D:\Redis\Redis-x64-5.0.10\redis-server.exe --service-start
 
 server:
 	go run main.go
 
-.PHONY:zookeeper kafka redis server
+.PHONY:zookeeper kafka redis server clearKafkaLogs

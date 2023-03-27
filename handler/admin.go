@@ -211,9 +211,9 @@ func (handler *AdminHandler) GetTicket(ctx *gin.Context) {
 }
 
 func (handler *AdminHandler) ListTicketsOnSale(ctx *gin.Context) {
-	var listTicketService service.ListTicketsService
-	if err := ctx.ShouldBind(&listTicketService); err == nil {
-		if tickets, err := handler.TicketService.ListTicketsOnSale(&listTicketService); err == nil {
+	var listTicketOnSaleService service.ListTicketsOnSaleService
+	if err := ctx.ShouldBind(&listTicketOnSaleService); err == nil {
+		if tickets, err := handler.TicketService.ListTicketsOnSale(&listTicketOnSaleService); err == nil {
 			R.Ok(ctx, "查询该路线当前在售车票信息成功", gin.H{
 				"tickets": tickets,
 			})

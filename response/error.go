@@ -21,6 +21,8 @@ var (
 	ErrUserNotExist = errors.New("用户不存在")
 	// 邮箱已被注册
 	ErrEmailExist = errors.New("邮箱已被注册")
+	// 邮箱不存在
+	ErrInvalidEmail = errors.New("邮箱不存在，发送验证码失败")
 	// 用户名已被注册
 	ErrUsernameExist = errors.New("用户名已被注册")
 
