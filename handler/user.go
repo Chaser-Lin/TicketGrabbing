@@ -256,16 +256,16 @@ func (handler *UserHandler) ListTicketsOnSale(ctx *gin.Context) {
 func (handler *UserHandler) BuyTicket(ctx *gin.Context) {
 	var spikeServiceReq service.SpikeServiceReq
 	if err := ctx.ShouldBind(&spikeServiceReq); err == nil {
-		//userID, ok := ctx.Get("user_id")
-		//if ok {
-		if err := handler.SpikeService.BuyTicket(spikeServiceReq.UserID, spikeServiceReq.TicketID); err == nil {
-			R.Ok(ctx, "购票成功", nil)
+		userID, ok := ctx.Get("user_id")
+		if ok {
+			if err := handler.SpikeService.BuyTicket(userID.(int), spikeServiceReq.TicketID); err == nil {
+				R.Ok(ctx, "购票成功", nil)
+			} else {
+				R.Error(ctx, err.Error(), nil)
+			}
 		} else {
-			R.Error(ctx, err.Error(), nil)
+			R.Error(ctx, "系统错误，购票失败", nil)
 		}
-		//} else {
-		//	R.Error(ctx, "系统错误，购票失败", nil)
-		//}
 	} else {
 		R.Response(ctx, http.StatusBadRequest, http.StatusBadRequest, "参数错误", err.Error())
 	}

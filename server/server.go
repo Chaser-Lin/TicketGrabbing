@@ -73,7 +73,7 @@ func (server *Server) setupRouter() {
 	router.GET("/tickets/search", middleware.Auth(), userHandler.ListTicketsOnSale) // 用户通过起点和终点查询在售车票信息
 
 	// 抢票接口使用限流中间件，每秒限制1000个请求，使用令牌桶算法，每秒填充1000个令牌
-	router.POST("/spike", middleware.RateLimit(time.Second, 10000, 10000), userHandler.BuyTicket) // 抢票接口
+	router.POST("/spike", middleware.Auth(), middleware.RateLimit(time.Second, 1000, 1000), userHandler.BuyTicket) // 抢票接口
 
 	// 订单相关路由组
 	orderGroup := router.Group("/orders").Use(middleware.Auth())

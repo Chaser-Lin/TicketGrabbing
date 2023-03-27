@@ -12,14 +12,9 @@ import (
 	"Project/MyProject/utils"
 	"fmt"
 	"log"
-	"os"
 )
 
 func main() {
-	f, _ := os.OpenFile("./fmt.log", os.O_WRONLY|os.O_CREATE|os.O_SYNC|os.O_APPEND, 0755)
-	os.Stdout = f
-	os.Stderr = f
-
 	// 加载配置文件
 	err := config.Load()
 	if err != nil {

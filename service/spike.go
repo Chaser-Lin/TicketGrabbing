@@ -11,7 +11,7 @@ import (
 
 type SpikeServiceReq struct {
 	TicketID int `json:"ticket_id" form:"ticket_id" binding:"required,number"`
-	UserID   int `json:"user_id" form:"user_id" binding:"required,number"`
+	//UserID   int `json:"user_id" form:"user_id" binding:"required,number"`
 }
 
 type SpikeServiceImplement interface {
