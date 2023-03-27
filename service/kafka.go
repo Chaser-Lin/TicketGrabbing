@@ -1,6 +1,7 @@
 package service
 
 import (
+	"Project/MyProject/cache"
 	"Project/MyProject/event"
 	"encoding/json"
 	"github.com/Shopify/sarama"
@@ -17,8 +18,6 @@ func NewKafkaMQService(consumer *event.Consumer) *KafkaMQService {
 }
 
 func (k *KafkaMQService) StartConsumer(orderService OrderServiceImplement, ticketService TicketServiceImplement) {
-
-	//TODO:消费者流控
 
 	partitionList, err := k.KafkaConsumer.Partitions(k.Topic) // 根据topic取到所有的分区
 	if err != nil {
@@ -47,11 +46,32 @@ func (k *KafkaMQService) StartConsumer(orderService OrderServiceImplement, ticke
 				err = json.Unmarshal(msg.Value, message)
 				if err != nil {
 					log.Println("StartConsumer Unmarshal msg.Value err:", err)
+					continue
+				}
+
+				// 补偿策略：在同一时间内存在多个相同请求的情况，将库存加回来
+				exist, err := cache.OrderLimit(message.UserID, message.TicketID)
+				if err != nil {
+					log.Println("StartConsumer cache.OrderLimit err:", err)
+					continue
+				}
+				if exist {
+					// 把预扣的库存加回来
+					log.Printf("after send message, userID: %d, ticketID: %d\n", message.UserID, message.TicketID)
+					if err = cache.StockAddOne(cache.GetStockKey(message.TicketID)); err != nil {
+						log.Println("StartConsumer cache.StockAddOne err:", err)
+					}
+					continue
 				}
 
 				err = orderService.AddOrder(message)
 				if err != nil {
 					log.Println("StartConsumer orderService.AddOrder err:", err)
+					continue
+				}
+				err = cache.AddOrderLimit(message.UserID, message.TicketID)
+				if err != nil {
+					log.Println("StartConsumer cache.AddOrderLimit err:", err)
 				}
 
 				// 如果减库存失败，但是redis中已经预扣成功，不会导致超卖问题

@@ -6,6 +6,7 @@ import (
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
+	"time"
 )
 
 type Config struct {
@@ -34,11 +35,31 @@ func Init(mysqlConf Config) error {
 	return nil
 }
 
+type Writer struct {
+}
+
+func (w Writer) Printf(format string, args ...interface{}) {
+	// log.Infof(format, args...)
+	fmt.Printf(format, args...)
+}
+
 // 根据config结构体中的内容初始化数据库连接
 func newDBClient(mysqlConf Config) (*gorm.DB, error) {
 	dsn := fmt.Sprintf(baseDsn, mysqlConf.Username, mysqlConf.Password, mysqlConf.Address, mysqlConf.Port, mysqlConf.DBName)
+	newLogger := logger.New(
+		Writer{},
+		logger.Config{
+			SlowThreshold:             200 * time.Millisecond, // Slow SQL threshold
+			LogLevel:                  logger.Info,            // Log level
+			IgnoreRecordNotFoundError: true,                   // Ignore ErrRecordNotFound error for logger
+			Colorful:                  false,                  // Disable color
+		},
+	)
 	db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{
-		Logger: logger.Default.LogMode(logger.Info), // 执行数据库操作时，在日志打印对应的sql语句
+		Logger: newLogger,
+		//Logger:                 logger.Default.LogMode(logger.Info), // 执行数据库操作时，在日志打印对应的sql语句
+		SkipDefaultTransaction: true,
+		PrepareStmt:            true,
 	})
 	if err != nil {
 		return nil, err
