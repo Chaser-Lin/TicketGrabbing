@@ -364,6 +364,10 @@ func (handler *UserHandler) CancelOrder(ctx *gin.Context) {
 				R.Error(ctx, fmt.Sprintf("取消订单失败，该订单的所有者为:(%d)，不属于用户:(%d)", order.UserID, userID.(int)), nil)
 				return
 			}
+			if err = cache.DeleteOrderLimit(order.UserID, order.TicketID); err != nil {
+				R.Error(ctx, "订单取消失败", nil)
+				return
+			}
 			if order.Status == 2 {
 				R.Error(ctx, "取消订单失败，该订单已过期", nil)
 				return
@@ -375,10 +379,6 @@ func (handler *UserHandler) CancelOrder(ctx *gin.Context) {
 			err = handler.OrderService.UpdateOrderStatus(&updateOrderStatusService)
 			if err != nil {
 				R.Error(ctx, err.Error(), nil)
-				return
-			}
-			if err = cache.DeleteOrderLimit(order.UserID, order.TicketID); err != nil {
-				R.Error(ctx, "订单取消失败", nil)
 				return
 			}
 			// 订单取消后需要将车票库存+1

@@ -171,15 +171,6 @@ func (s *Server) AutoDeleteExpireOrder() {
 		// 不要手动删数据库，否则会出现redis和mysql数据不一致的情况，程序无法正常运行
 		for _, orderID := range orderIDs {
 			fmt.Println("expired orderID: ", orderID)
-			updateOrderStatusService := service.UpdateOrderStatusService{
-				OrderID: orderID,
-				Status:  2, // 订单状态为 2 表示已过期
-			}
-			err = orderService.UpdateOrderStatus(&updateOrderStatusService)
-			if err != nil {
-				log.Printf("AutoDeleteExpireOrder orderService.UpdateOrderStatus error, orderID:(%v), err:(%v)", orderID, err)
-				continue
-			}
 			userID, ticketID, err := orderService.GetOrderUserAndTicketID(orderID)
 			if err != nil {
 				log.Printf("AutoDeleteExpireOrder orderService.GetOrder error, orderID:(%v), err:(%v)", orderID, err)
@@ -189,6 +180,16 @@ func (s *Server) AutoDeleteExpireOrder() {
 			err = cache.DeleteOrderLimit(userID, ticketID)
 			if err != nil {
 				log.Printf("AutoDeleteExpireOrder cache.DeleteOrderLimit error, ticketID:(%v), err:(%v)", ticketID, err)
+			}
+
+			updateOrderStatusService := service.UpdateOrderStatusService{
+				OrderID: orderID,
+				Status:  2, // 订单状态为 2 表示已过期
+			}
+			err = orderService.UpdateOrderStatus(&updateOrderStatusService)
+			if err != nil {
+				log.Printf("AutoDeleteExpireOrder orderService.UpdateOrderStatus error, orderID:(%v), err:(%v)", orderID, err)
+				continue
 			}
 			// 订单过期后需要将车票库存+1
 			err = ticketService.AddNumberOne(ticketID)
