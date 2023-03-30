@@ -72,8 +72,9 @@ func (server *Server) setupRouter() {
 	}
 	router.GET("/tickets/search", middleware.Auth(), userHandler.ListTicketsOnSale) // 用户通过起点和终点查询在售车票信息
 
-	// 抢票接口使用限流中间件，每秒限制1000个请求，使用令牌桶算法，每秒填充1000个令牌
-	router.POST("/spike", middleware.Auth(), middleware.RateLimit(time.Second, 1000, 1000), userHandler.BuyTicket) // 抢票接口
+	// 抢票接口使用限流中间件，每秒限制5000个请求，使用令牌桶算法，每秒填充5000个令牌
+	router.POST("/spike", middleware.Auth(), middleware.RateLimit(time.Second, 5000, 5000), userHandler.BuyTicket) // 抢票接口
+	//router.POST("/spike", middleware.RateLimit(time.Second, 5000, 5000), userHandler.BuyTicket) // 抢票接口
 
 	// 订单相关路由组
 	orderGroup := router.Group("/orders").Use(middleware.Auth())
@@ -165,6 +166,7 @@ func (s *Server) AutoDeleteExpireOrder() {
 		orderIDs, err := cache.GetExpiredOrder("0", strconv.Itoa(int(now)))
 		if err != nil {
 			log.Println("AutoDeleteExpireOrder cache.GetExpiredOrder err: ", err)
+			continue
 		}
 		// 不要手动删数据库，否则会出现redis和mysql数据不一致的情况，程序无法正常运行
 		for _, orderID := range orderIDs {
@@ -176,10 +178,17 @@ func (s *Server) AutoDeleteExpireOrder() {
 			err = orderService.UpdateOrderStatus(&updateOrderStatusService)
 			if err != nil {
 				log.Printf("AutoDeleteExpireOrder orderService.UpdateOrderStatus error, orderID:(%v), err:(%v)", orderID, err)
+				continue
 			}
-			_, ticketID, err := orderService.GetOrderUserAndTicketID(orderID)
+			userID, ticketID, err := orderService.GetOrderUserAndTicketID(orderID)
 			if err != nil {
 				log.Printf("AutoDeleteExpireOrder orderService.GetOrder error, orderID:(%v), err:(%v)", orderID, err)
+				continue
+			}
+			// 把有效订单记录删除，避免用户在没有有效订单的情况下也购买不了车票
+			err = cache.DeleteOrderLimit(userID, ticketID)
+			if err != nil {
+				log.Printf("AutoDeleteExpireOrder cache.DeleteOrderLimit error, ticketID:(%v), err:(%v)", ticketID, err)
 			}
 			// 订单过期后需要将车票库存+1
 			err = ticketService.AddNumberOne(ticketID)

@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"Project/MyProject/cache"
 	R "Project/MyProject/response"
 	"Project/MyProject/service"
 	"Project/MyProject/utils"
@@ -376,12 +377,14 @@ func (handler *UserHandler) CancelOrder(ctx *gin.Context) {
 				R.Error(ctx, err.Error(), nil)
 				return
 			}
+			if err = cache.DeleteOrderLimit(order.UserID, order.TicketID); err != nil {
+				R.Error(ctx, "订单取消失败", nil)
+				return
+			}
 			// 订单取消后需要将车票库存+1
 			if err = handler.TicketService.AddNumberOne(order.TicketID); err == nil {
-				msg := ""
-				if order.Status == 0 {
-					msg = "订单取消成功"
-				} else if order.Status == 1 {
+				msg := "订单取消成功"
+				if order.Status == 1 {
 					msg = "退票成功"
 				}
 				R.Ok(ctx, msg, nil)

@@ -8,6 +8,7 @@ import (
 	"Project/MyProject/utils"
 	"github.com/go-sql-driver/mysql"
 	"gorm.io/gorm"
+	"log"
 	"time"
 )
 
@@ -180,6 +181,12 @@ func (t *TicketService) AddNumberOne(ticketID int) (err error) {
 	err = t.TicketDal.UpdateStockAddOne(ticketID)
 	if err != nil {
 		return response.ErrFailedSubStock
+	}
+	// 先更新数据库再更新缓存，避免缓存更新成功而数据库没有更新导致超卖
+	err = cache.StockAddOne(cache.GetStockKey(ticketID))
+	if err != nil {
+		log.Printf("AutoDeleteExpireOrder cache.StockAddOne error, ticketID:(%v), err:(%v)", ticketID, err)
+		return response.ErrRedisOperation
 	}
 	return
 }

@@ -51,12 +51,20 @@ func StockAddOne(key string) error {
 	return RedisClient.Incr(key).Err()
 }
 
+// OrderLimit 用户在购买车票时，判断是否有限制
 func OrderLimit(userID int, ticketID int) (bool, error) {
 	userTicket := fmt.Sprintf("%d-%d", userID, ticketID)
 	return RedisClient.SIsMember(orderLimitKey, userTicket).Result()
 }
 
+// AddOrderLimit 添加用户购票限制，在用户下单成功时调用
 func AddOrderLimit(userID int, ticketID int) error {
 	userTicket := fmt.Sprintf("%d-%d", userID, ticketID)
 	return RedisClient.SAdd(orderLimitKey, userTicket).Err()
+}
+
+// DeleteOrderLimit 删除用户购票限制，在用户取消订单以及订单过期时调用
+func DeleteOrderLimit(userID int, ticketID int) error {
+	userTicket := fmt.Sprintf("%d-%d", userID, ticketID)
+	return RedisClient.SRem(orderLimitKey, userTicket).Err()
 }
