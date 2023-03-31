@@ -20,16 +20,18 @@ import (
 */
 
 type UserHandler struct {
-	UserService   service.UserServiceImplement
-	TicketService service.TicketServiceImplement
-	OrderService  service.OrderServiceImplement
-	EmailService  service.EmailServiceImplement
-	SpikeService  service.SpikeServiceImplement
+	UserService      service.UserServiceImplement
+	PassengerService service.PassengerServiceImplement
+	TicketService    service.TicketServiceImplement
+	OrderService     service.OrderServiceImplement
+	EmailService     service.EmailServiceImplement
+	SpikeService     service.SpikeServiceImplement
 }
 
 // 用户交互界面所有服务接口
 type UserInteractImplement interface {
 	UserImplement
+	PassengerImplement
 	ListTicketsOnSale(ctx *gin.Context)
 	OrderImplement
 	SpikeImplement
@@ -41,6 +43,14 @@ type UserImplement interface {
 	Login(ctx *gin.Context)
 	Register(ctx *gin.Context)
 	GetUserInfo(ctx *gin.Context)
+}
+
+// 乘车人服务接口
+type PassengerImplement interface {
+	AddPassenger(ctx *gin.Context)
+	DeletePassenger(ctx *gin.Context)
+	GetPassenger(ctx *gin.Context)
+	ListUserPassengers(ctx *gin.Context)
 }
 
 // 订单服务接口
@@ -59,16 +69,18 @@ type SpikeImplement interface {
 }
 
 func NewUserHandler(userService service.UserServiceImplement,
+	passengerService service.PassengerServiceImplement,
 	ticketService service.TicketServiceImplement,
 	orderService service.OrderServiceImplement,
 	emailService service.EmailServiceImplement,
 	spikeService service.SpikeServiceImplement) UserInteractImplement {
 	return &UserHandler{
-		UserService:   userService,
-		TicketService: ticketService,
-		OrderService:  orderService,
-		EmailService:  emailService,
-		SpikeService:  spikeService,
+		UserService:      userService,
+		PassengerService: passengerService,
+		TicketService:    ticketService,
+		OrderService:     orderService,
+		EmailService:     emailService,
+		SpikeService:     spikeService,
 	}
 }
 
@@ -230,7 +242,6 @@ func (handler *UserHandler) GetUserInfo(ctx *gin.Context) {
 			R.Ok(ctx, "获取用户信息成功", gin.H{
 				"email":    userInfo.Email,
 				"username": userInfo.Username,
-				"phone":    userInfo.Phone,
 				"id":       userInfo.UserID,
 			})
 		} else {
@@ -259,13 +270,79 @@ func (handler *UserHandler) BuyTicket(ctx *gin.Context) {
 	if err := ctx.ShouldBind(&spikeServiceReq); err == nil {
 		userID, ok := ctx.Get("user_id")
 		if ok {
-			if err := handler.SpikeService.BuyTicket(userID.(int), spikeServiceReq.TicketID); err == nil {
+			if err := handler.SpikeService.BuyTicket(userID.(int), spikeServiceReq.TicketID, spikeServiceReq.PassengerID); err == nil {
 				R.Ok(ctx, "购票成功", nil)
 			} else {
 				R.Error(ctx, err.Error(), nil)
 			}
 		} else {
 			R.Error(ctx, "系统错误，购票失败", nil)
+		}
+	} else {
+		R.Response(ctx, http.StatusBadRequest, http.StatusBadRequest, "参数错误", err.Error())
+	}
+}
+
+func (handler *UserHandler) AddPassenger(ctx *gin.Context) {
+	var addPassengerService service.AddPassengerService
+	if err := ctx.ShouldBind(&addPassengerService); err == nil {
+		userID, ok := ctx.Get("user_id")
+		if ok {
+			addPassengerService.UserID = userID.(int)
+			if err := handler.PassengerService.AddPassenger(&addPassengerService); err == nil {
+				R.Ok(ctx, "添加乘客信息成功", nil)
+			} else {
+				R.Error(ctx, err.Error(), nil)
+			}
+		} else {
+			R.Error(ctx, "系统错误，添加乘客信息失败", nil)
+		}
+	} else {
+		R.Response(ctx, http.StatusBadRequest, http.StatusBadRequest, "参数错误", err.Error())
+	}
+}
+
+func (handler *UserHandler) DeletePassenger(ctx *gin.Context) {
+	var deletePassengerService service.DeletePassengerService
+	if err := ctx.ShouldBind(&deletePassengerService); err == nil {
+		if err := handler.PassengerService.DeletePassenger(&deletePassengerService); err == nil {
+			R.Ok(ctx, "删除乘客信息成功", nil)
+		} else {
+			R.Error(ctx, err.Error(), nil)
+		}
+	} else {
+		R.Response(ctx, http.StatusBadRequest, http.StatusBadRequest, "参数错误", err.Error())
+	}
+}
+func (handler *UserHandler) GetPassenger(ctx *gin.Context) {
+	var getPassengersService service.GetPassengerService
+	if err := ctx.ShouldBind(&getPassengersService); err == nil {
+		if passenger, err := handler.PassengerService.GetPassenger(&getPassengersService); err == nil {
+			R.Ok(ctx, "获取乘客信息成功", gin.H{
+				"passenger": passenger,
+			})
+		} else {
+			R.Error(ctx, err.Error(), nil)
+		}
+	} else {
+		R.Response(ctx, http.StatusBadRequest, http.StatusBadRequest, "参数错误", err.Error())
+	}
+}
+func (handler *UserHandler) ListUserPassengers(ctx *gin.Context) {
+	var listUserPassengersService service.ListUserPassengersService
+	if err := ctx.ShouldBind(&listUserPassengersService); err == nil {
+		userID, ok := ctx.Get("user_id")
+		if ok {
+			listUserPassengersService.UserID = userID.(int)
+			if passengers, err := handler.PassengerService.ListPassengers(&listUserPassengersService); err == nil {
+				R.Ok(ctx, "获取乘客信息列表成功", gin.H{
+					"passengers": passengers,
+				})
+			} else {
+				R.Error(ctx, err.Error(), nil)
+			}
+		} else {
+			R.Error(ctx, "系统错误，获取乘客信息列表失败", nil)
 		}
 	} else {
 		R.Response(ctx, http.StatusBadRequest, http.StatusBadRequest, "参数错误", err.Error())
@@ -364,7 +441,7 @@ func (handler *UserHandler) CancelOrder(ctx *gin.Context) {
 				R.Error(ctx, fmt.Sprintf("取消订单失败，该订单的所有者为:(%d)，不属于用户:(%d)", order.UserID, userID.(int)), nil)
 				return
 			}
-			if err = cache.DeleteOrderLimit(order.UserID, order.TicketID); err != nil {
+			if err = cache.DeleteOrderLimit(order.PassengerID, order.TicketID); err != nil {
 				R.Error(ctx, "订单取消失败", nil)
 				return
 			}

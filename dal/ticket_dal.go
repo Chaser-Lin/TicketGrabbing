@@ -20,7 +20,6 @@ type TicketDalImplement interface {
 }
 
 type TicketDal struct {
-	TicketDalImplement
 	DB *gorm.DB
 }
 

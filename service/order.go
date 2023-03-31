@@ -15,9 +15,10 @@ import (
 // 添加订单服务参数
 type AddOrderService struct {
 	// 传入用户相关信息
-	UserID    int    `json:"user_id" form:"user_id"`     // binding:"required,number"`
-	Passenger string `json:"passenger" form:"passenger"` // binding:"required"`
-	Phone     string `json:"phone" form:"phone"`         // binding:"required,number"`
+	UserID      int    `json:"user_id" form:"user_id"`     // binding:"required,number"`
+	Passenger   string `json:"passenger" form:"passenger"` // binding:"required"`
+	Phone       string `json:"phone" form:"phone"`         // binding:"required,number"`
+	PassengerID int    `json:"passenger_id" form:"passenger_id" binding:"required,number"`
 	// 传入车票相关信息
 	TicketID      int       `json:"ticket_id" form:"ticket_id" binding:"required,number"`
 	Price         uint32    `json:"price" form:"price"`                   // binding:"required,number"`
@@ -43,7 +44,6 @@ type OrderInfo struct {
 	Passenger     string    `json:"passenger"`
 	OrderID       string    `json:"order_id"`
 	UserID        int       `json:"user_id"`
-	UserEmail     string    `json:"user_email"`
 	Phone         string    `json:"phone"`
 	Price         uint32    `json:"price"`
 	Start         string    `json:"start"`
@@ -85,48 +85,39 @@ type OrderServiceImplement interface {
 	ListOrders(userID int) ([]*OrderInfo, error)
 	UpdateOrderStatus(*UpdateOrderStatusService) error
 	DeleteOrder(orderID string) error
-	GetOrderUserAndTicketID(orderID string) (int, int, error)
+	GetOrderPassengerAndTicketID(orderID string) (int, int, error)
 	//DeleteOrder(service *DeleteOrderService) error
 }
 
 // 实现订单服务接口的实例
 type OrderService struct {
-	OrderDal dal.OrderDalImplement
+	OrderDal     dal.OrderDalImplement
+	TicketDal    dal.TicketDalImplement
+	PassengerDal dal.PassengerDalImplement
 }
 
-func NewOrderServices(orderDal dal.OrderDalImplement) OrderServiceImplement {
-	return &OrderService{orderDal}
+func NewOrderServices(orderDal dal.OrderDalImplement,
+	ticketDal dal.TicketDalImplement,
+	passengerDal dal.PassengerDalImplement) OrderServiceImplement {
+	return &OrderService{
+		OrderDal:     orderDal,
+		TicketDal:    ticketDal,
+		PassengerDal: passengerDal,
+	}
 }
 
 func (o *OrderService) AddOrder(service *MessageService) error {
-	//_, err := o.OrderDal.GetOrder(service.Start, service.End)
-	//if err == nil {
-	//	return response.ErrOrderExist
-	//}
-
 	orderID := uuid.New()
 	now := time.Now()
 
-	//userDal := dal.NewUserDal()
-	//user, err := userDal.GetUserByID(service.UserID)
-	//if err != nil {
-	//	return err
-	//}
-	//
-	//ticketDal := dal.NewTicketDal()
-	//ticket, err := ticketDal.GetTicket(service.TicketID)
-	//if err != nil {
-	//	return err
-	//}
-
 	order := &models.Order{
-		OrderID:    orderID,
-		UserID:     service.UserID,
-		TicketID:   service.TicketID,
-		Status:     0,
-		Visibility: true,
-		CreatedAt:  now,
-		ExpiredAt:  now.Add(30 * time.Minute),
+		OrderID:     orderID,
+		UserID:      service.UserID,
+		PassengerID: service.PassengerID,
+		TicketID:    service.TicketID,
+		Status:      0,
+		Visibility:  true,
+		ExpiredAt:   now.Add(30 * time.Minute),
 	}
 
 	if err := o.OrderDal.AddOrder(order); err != nil {
@@ -205,6 +196,9 @@ func (o *OrderService) GetOrder(orderID string) (*models.Order, error) {
 	} else if err != nil {
 		return nil, response.ErrDbOperation
 	}
+	order.Ticket, _ = o.TicketDal.GetTicket(order.TicketID)
+	order.Passenger, _ = o.PassengerDal.GetPassengerByID(order.PassengerID)
+
 	return order, nil
 }
 
@@ -216,12 +210,12 @@ func (o *OrderService) GetOrderInfo(orderID string) (*OrderInfo, error) {
 	return parseOrderToInfo(order), nil
 }
 
-func (o *OrderService) GetOrderUserAndTicketID(orderID string) (int, int, error) {
+func (o *OrderService) GetOrderPassengerAndTicketID(orderID string) (int, int, error) {
 	order, err := o.GetOrder(orderID)
 	if err != nil {
 		return 0, 0, err
 	}
-	return order.UserID, order.TicketID, nil
+	return order.PassengerID, order.TicketID, nil
 }
 
 func (o *OrderService) ListOrders(userID int) ([]*OrderInfo, error) {
@@ -233,6 +227,8 @@ func (o *OrderService) ListOrders(userID int) ([]*OrderInfo, error) {
 	}
 	orderInfos := make([]*OrderInfo, 0)
 	for _, order := range orders {
+		order.Ticket, _ = o.TicketDal.GetTicket(order.TicketID)
+		order.Passenger, _ = o.PassengerDal.GetPassengerByID(order.PassengerID)
 		orderInfos = append(orderInfos, parseOrderToInfo(&order))
 	}
 	return orderInfos, nil
@@ -271,18 +267,16 @@ func (o *OrderService) DeleteOrder(orderID string) error {
 
 func parseOrderToInfo(order *models.Order) *OrderInfo {
 	return &OrderInfo{
-		Passenger:     order.User.Username,
 		OrderID:       order.OrderID.String(),
-		UserID:        order.UserID,
-		UserEmail:     order.User.Email,
-		Phone:         order.User.Phone,
+		Passenger:     order.Passenger.Name,
+		Phone:         order.Passenger.Phone,
 		Price:         order.Ticket.Price,
 		Start:         order.Ticket.Start,
 		End:           order.Ticket.End,
 		DepartureTime: order.Ticket.DepartureTime,
 		ArrivalTime:   order.Ticket.ArrivalTime,
 		Status:        order.Status,
-		CreatedAt:     order.CreatedAt,
-		ExpiredAt:     order.ExpiredAt,
+		//CreatedAt:     order.CreatedAt,
+		ExpiredAt: order.ExpiredAt,
 	}
 }

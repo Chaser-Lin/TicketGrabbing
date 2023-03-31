@@ -10,12 +10,13 @@ import (
 )
 
 type SpikeServiceReq struct {
-	TicketID int `json:"ticket_id" form:"ticket_id" binding:"required,number"`
+	TicketID    int `json:"ticket_id" form:"ticket_id" binding:"required,number"`
+	PassengerID int `json:"passenger_id" form:"passenger_id" binding:"required,number"`
 	//UserID   int `json:"user_id" form:"user_id" binding:"required,number"`
 }
 
 type SpikeServiceImplement interface {
-	BuyTicket(userID int, ticketID int) error
+	BuyTicket(userID int, ticketID int, passengerID int) error
 }
 
 type SpikeService struct {
@@ -30,7 +31,7 @@ func NewSpikeService(producer *event.Producer) SpikeServiceImplement {
 	}
 }
 
-func (s *SpikeService) BuyTicket(userID int, ticketID int) error {
+func (s *SpikeService) BuyTicket(userID int, ticketID int, passengerID int) error {
 	// 查询是否有余票
 	if !cache.Limit(cache.GetStockKey(ticketID)) {
 		return response.ErrNoRemainingTicket
@@ -39,7 +40,7 @@ func (s *SpikeService) BuyTicket(userID int, ticketID int) error {
 	// 若同一时间有多个相同的请求进来，在orderlimit判断通过的情况下，实际上依然有可能会有两个相同的请求（两个请求的间隔快到连redis也来不及更新）
 	// 就会导致某个用户购买多张相同车票的情况，对于这种情况在kafka消费者中进行了处理，对于重复请求会回退库存，导致出现少卖的情况
 	// 如果用户已经购买过该车次的车票，直接返回
-	exist, err := cache.OrderLimit(userID, ticketID)
+	exist, err := cache.OrderLimit(passengerID, ticketID)
 	if err != nil {
 		log.Printf("BuyTicket cache.OrderLimit err: (%v)\n", err)
 		return response.ErrRedisOperation
@@ -55,8 +56,9 @@ func (s *SpikeService) BuyTicket(userID int, ticketID int) error {
 
 	message := MessageService{
 		event.Message{
-			TicketID: ticketID,
-			UserID:   userID,
+			TicketID:    ticketID,
+			UserID:      userID,
+			PassengerID: passengerID,
 		},
 	}
 	byteMessage, err := json.Marshal(message)

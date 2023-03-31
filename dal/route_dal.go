@@ -15,7 +15,6 @@ type RouteDalImplement interface {
 }
 
 type RouteDal struct {
-	RouteDalImplement
 	DB *gorm.DB
 }
 

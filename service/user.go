@@ -104,10 +104,7 @@ func (u *UserService) Register(service *UserRegisterService) error {
 	if err == nil {
 		return response.ErrEmailExist
 	}
-	//_, err = u.UserDal.GetUserByUsername(service.Email)
-	//if err == nil {
-	//	return response.ErrUsernameExist
-	//}
+
 	hashedPassword, err := utils.HashPassword(service.Password)
 	if err != nil {
 		return response.ErrEncrypt
@@ -153,7 +150,6 @@ func (u *UserService) UpdateUserInfo(service *UpdateUserInfoService) error {
 		Username:       service.Username,
 		HashedPassword: hashedPassword,
 		Email:          service.Email,
-		Phone:          service.Phone,
 	}
 
 	err = u.UserDal.UpdateUser(user)

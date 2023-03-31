@@ -29,7 +29,7 @@ func Init(mysqlConf Config) error {
 	fmt.Println("数据库连接成功")
 
 	// 数据库迁移
-	Migration()
+	//Migration()
 
 	return nil
 }

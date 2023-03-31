@@ -70,24 +70,11 @@ func NewTicketServices(ticketDal dal.TicketDalImplement) TicketServiceImplement 
 }
 
 func (t *TicketService) AddTicket(service *AddTicketService) error {
-	//_, err := t.TicketDal.GetTicket(service.TicketID)
-	//if err == nil {
-	//	return response.ErrTicketExist
-	//}
-
 	startTime, err := utils.ParseStringToTime(service.StartTime)
 	if err != nil {
 		return response.ErrInvalidParam
 	}
 	departureTime, err := utils.ParseStringToTime(service.DepartureTime)
-
-	//routeDal := dal.NewRouteDal()
-	//route, err := routeDal.GetRouteByID(service.RouteID)
-	//if err == gorm.ErrRecordNotFound {
-	//	return response.ErrRouteNotExist
-	//} else if err != nil {
-	//	return response.ErrDbOperation
-	//}
 
 	ticket := &models.Ticket{
 		RouteID:       service.RouteID,

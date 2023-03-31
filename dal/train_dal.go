@@ -14,7 +14,6 @@ type TrainDalImplement interface {
 }
 
 type TrainDal struct {
-	TrainDalImplement
 	DB *gorm.DB
 }
 

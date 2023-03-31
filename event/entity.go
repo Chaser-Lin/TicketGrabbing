@@ -6,8 +6,9 @@ type Config struct {
 }
 
 type Message struct {
-	TicketID int
-	UserID   int
+	TicketID    int
+	UserID      int
+	PassengerID int
 }
 
 var kafkaConf Config

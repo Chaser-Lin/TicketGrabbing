@@ -39,22 +39,12 @@ func NewRouteServices(routeDal dal.RouteDalImplement) RouteServiceImplement {
 }
 
 func (r *RouteService) AddRoute(service *AddRouteService) error {
-	//_, err := r.RouteDal.GetRoute(service.Start, service.End)
-	//if err == nil {
-	//	return response.ErrRouteExist
-	//}
-
-	//if _, err := r.GetRoute(&GetRouteService{Start: service.Start, End: service.End}); err == nil {
-	//
-	//}
-
 	route := &models.Route{
 		Start:  service.Start,
 		End:    service.End,
 		Length: service.Length,
 	}
 
-	// TODO: 添加unique索引
 	if err := r.RouteDal.AddRoute(route); err != nil {
 		if mysqlErr, ok := err.(*mysql.MySQLError); ok {
 			if mysqlErr.Number == 1062 { // 1062:Duplicate，重复数据

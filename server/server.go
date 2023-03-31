@@ -50,14 +50,15 @@ func NewServer(config *config.Config) (*Server, error) {
 func (server *Server) setupRouter() {
 
 	userService := service.NewUserServices(dal.NewUserDal())
+	PassengerService := service.NewPassengerServices(dal.NewPassengerDal())
 	routeService := service.NewRouteServices(dal.NewRouteDal())
 	trainService := service.NewTrainServices(dal.NewTrainDal())
 	ticketService := service.NewTicketServices(dal.NewTicketDal())
-	orderService := service.NewOrderServices(dal.NewOrderDal())
+	orderService := service.NewOrderServices(dal.NewOrderDal(), dal.NewTicketDal(), dal.NewPassengerDal())
 	emailService := service.NewEmailServices(service.NewVerifyCodeManager())
 	spikeService := service.NewSpikeService(server.kafkaProducer)
 
-	var userHandler = h.NewUserHandler(userService, ticketService, orderService, emailService, spikeService)
+	var userHandler = h.NewUserHandler(userService, PassengerService, ticketService, orderService, emailService, spikeService)
 	var adminHandler = h.NewAdminHandler(routeService, trainService, ticketService)
 
 	router := gin.Default()
@@ -75,6 +76,15 @@ func (server *Server) setupRouter() {
 	// 抢票接口使用限流中间件，每秒限制5000个请求，使用令牌桶算法，每秒填充5000个令牌
 	router.POST("/spike", middleware.Auth(), middleware.RateLimit(time.Second, 5000, 5000), userHandler.BuyTicket) // 抢票接口
 	//router.POST("/spike", middleware.RateLimit(time.Second, 5000, 5000), userHandler.BuyTicket) // 抢票接口
+
+	// 乘客相关路由组
+	passengerGroup := router.Group("/passengers").Use(middleware.Auth())
+	{
+		passengerGroup.POST("/", userHandler.AddPassenger)             // 添加乘客
+		passengerGroup.GET("/", userHandler.ListUserPassengers)        // 获取用户添加的乘客列表
+		passengerGroup.GET("/:passenger_id", userHandler.GetPassenger) // 获取乘客信息
+		passengerGroup.DELETE("/", userHandler.DeletePassenger)        // 删除乘客信息
+	}
 
 	// 订单相关路由组
 	orderGroup := router.Group("/orders").Use(middleware.Auth())
@@ -120,7 +130,7 @@ func (server *Server) setupRouter() {
 func (s *Server) StartKafkaConsumer() {
 	kafkaService := service.NewKafkaMQService(s.kafkaConsumer)
 	ticketService := service.NewTicketServices(dal.NewTicketDal())
-	orderService := service.NewOrderServices(dal.NewOrderDal())
+	orderService := service.NewOrderServices(dal.NewOrderDal(), dal.NewTicketDal(), dal.NewPassengerDal())
 
 	kafkaService.StartConsumer(orderService, ticketService)
 }
@@ -159,7 +169,7 @@ func (s *Server) LoadTicketStocks() error {
 func (s *Server) AutoDeleteExpireOrder() {
 	ticker := time.NewTicker(time.Second) // 每秒删除一次过期订单记录
 	defer ticker.Stop()
-	orderService := service.NewOrderServices(dal.NewOrderDal())
+	orderService := service.NewOrderServices(dal.NewOrderDal(), dal.NewTicketDal(), dal.NewPassengerDal())
 	ticketService := service.NewTicketServices(dal.NewTicketDal())
 	for range ticker.C {
 		now := time.Now().Unix()
@@ -171,13 +181,13 @@ func (s *Server) AutoDeleteExpireOrder() {
 		// 不要手动删数据库，否则会出现redis和mysql数据不一致的情况，程序无法正常运行
 		for _, orderID := range orderIDs {
 			fmt.Println("expired orderID: ", orderID)
-			userID, ticketID, err := orderService.GetOrderUserAndTicketID(orderID)
+			passengerID, ticketID, err := orderService.GetOrderPassengerAndTicketID(orderID)
 			if err != nil {
 				log.Printf("AutoDeleteExpireOrder orderService.GetOrder error, orderID:(%v), err:(%v)", orderID, err)
 				continue
 			}
 			// 把有效订单记录删除，避免用户在没有有效订单的情况下也购买不了车票
-			err = cache.DeleteOrderLimit(userID, ticketID)
+			err = cache.DeleteOrderLimit(passengerID, ticketID)
 			if err != nil {
 				log.Printf("AutoDeleteExpireOrder cache.DeleteOrderLimit error, ticketID:(%v), err:(%v)", ticketID, err)
 			}

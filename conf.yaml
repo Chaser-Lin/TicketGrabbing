@@ -4,6 +4,7 @@ Mysql:
   Address: "localhost"
   Port: 3306
   DBName: "ticket_grabbing_db"
+#  DBName: "test_order"
 
 Redis:
   Addr: "localhost:6379"

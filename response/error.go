@@ -71,6 +71,11 @@ var (
 	// 更新订单状态失败
 	ErrUpdateOrderStatus = errors.New("更新订单状态失败")
 
+	// 乘客信息已存在
+	ErrSamePassengerExist = errors.New("该乘客已在用户的乘客列表中，请勿重复添加")
+	// 找不到乘客信息
+	ErrPassengerNotExist = errors.New("找不到对应的乘客信息")
+
 	// 数据库操作错误
 	ErrDbOperation = errors.New("数据库操作错误")
 

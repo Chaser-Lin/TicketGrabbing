@@ -16,21 +16,10 @@ type UserDalImplement interface {
 }
 
 type UserDal struct {
-	UserDalImplement
 	DB *gorm.DB
 }
 
 func NewUserDal() UserDalImplement {
-	//userdal := &UserDal{
-	//	DB: testDB,
-	//}
-	//if db.DB == nil {
-	//	fmt.Println("这个初始化了")
-	//}
-	//if userdal.DB == nil {
-	//	fmt.Println("cnm为什么是nil")
-	//}
-	//return userdal
 	return &UserDal{
 		DB: db.DB,
 	}

@@ -38,11 +38,6 @@ func NewTrainServices(trainDal dal.TrainDalImplement) TrainServiceImplement {
 }
 
 func (t *TrainService) AddTrain(service *AddTrainService) error {
-	//_, err := t.TrainDal.GetTrain(service.TrainID)
-	//if err == nil {
-	//	return response.ErrTrainExist
-	//}
-
 	train := &models.Train{
 		TrainID: service.TrainID,
 		Speed:   service.Speed,

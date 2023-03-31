@@ -50,14 +50,14 @@ func (k *KafkaMQService) StartConsumer(orderService OrderServiceImplement, ticke
 				}
 
 				// 补偿策略：在同一时间内存在多个相同请求的情况，将库存加回来
-				exist, err := cache.OrderLimit(message.UserID, message.TicketID)
+				exist, err := cache.OrderLimit(message.PassengerID, message.TicketID)
 				if err != nil {
 					log.Println("StartConsumer cache.OrderLimit err:", err)
 					continue
 				}
 				if exist {
 					// 把预扣的库存加回来
-					log.Printf("after send message, userID: %d, ticketID: %d\n", message.UserID, message.TicketID)
+					log.Printf("after send message, userID: %d, ticketID: %d\n", message.PassengerID, message.TicketID)
 					if err = cache.StockAddOne(cache.GetStockKey(message.TicketID)); err != nil {
 						log.Println("StartConsumer cache.StockAddOne err:", err)
 					}
@@ -69,7 +69,7 @@ func (k *KafkaMQService) StartConsumer(orderService OrderServiceImplement, ticke
 					log.Println("StartConsumer orderService.AddOrder err:", err)
 					continue
 				}
-				err = cache.AddOrderLimit(message.UserID, message.TicketID)
+				err = cache.AddOrderLimit(message.PassengerID, message.TicketID)
 				if err != nil {
 					log.Println("StartConsumer cache.AddOrderLimit err:", err)
 				}
