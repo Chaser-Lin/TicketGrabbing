@@ -11,8 +11,10 @@ import (
 const (
 	// 32位对称密钥
 	TokenSymmetricKey = "12345678901234567980123456789012"
-	// token有效期
-	TokenDurationTime = 1 * time.Hour
+	// accessToken有效期
+	AccessTokenDurationTime = 4 * time.Hour
+	// refreshToken有效期
+	RefreshTokenDurationTime = 14 * 24 * time.Hour
 )
 
 var TokenMaker = NewTokenMaker(TokenSymmetricKey)

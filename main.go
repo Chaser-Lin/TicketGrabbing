@@ -3,12 +3,12 @@ package main
 import (
 	"Project/MyProject/cache"
 	"Project/MyProject/config"
-	"Project/MyProject/dal"
-	"Project/MyProject/dal/models"
+	"Project/MyProject/dao"
 	"Project/MyProject/db"
 	"Project/MyProject/event"
+	"Project/MyProject/models"
 	"Project/MyProject/server"
-	"Project/MyProject/service"
+	"Project/MyProject/services"
 	"Project/MyProject/utils"
 	"fmt"
 	"log"
@@ -26,7 +26,7 @@ func main() {
 	if err != nil {
 		log.Fatal("Mysql连接错误:", err)
 	}
-	service.CreateAdmin()
+	services.CreateAdmin()
 
 	// 初始化Redis缓存连接
 	err = cache.Init(config.Conf.Redis)
@@ -58,7 +58,7 @@ func main() {
 
 // 测试数据库插入和查询，没问题
 func TestCreateUser() {
-	userDal := dal.NewUserDal()
+	userDal := dao.NewUserDao()
 	password := utils.RandomString(6)
 	hashedPassword, err := utils.HashPassword(password)
 

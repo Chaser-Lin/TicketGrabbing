@@ -1,7 +1,7 @@
 package db
 
 import (
-	"Project/MyProject/dal/models"
+	"Project/MyProject/models"
 	"fmt"
 	"log"
 )

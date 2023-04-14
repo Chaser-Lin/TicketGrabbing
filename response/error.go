@@ -7,6 +7,8 @@ var (
 	ErrExpiredToken = errors.New("token已过期")
 	// token非法错误提示
 	ErrInvalidToken = errors.New("token格式不合法")
+	// refresh_token不存在
+	ErrInvalidRefreshToken = errors.New("refresh_token不存在")
 	// 参数类型错误
 	ErrInvalidParam = errors.New("参数类型错误")
 	// 用户名或密码错误
@@ -20,7 +22,7 @@ var (
 	// 用户不存在
 	ErrUserNotExist = errors.New("用户不存在")
 	// 邮箱已被注册
-	ErrEmailExist = errors.New("邮箱已被注册")
+	ErrEmailExist = errors.New("该邮箱已被注册")
 	// 邮箱不存在
 	ErrInvalidEmail = errors.New("邮箱不存在，发送验证码失败")
 	// 用户名已被注册
@@ -75,6 +77,8 @@ var (
 	ErrSamePassengerExist = errors.New("该乘客已在用户的乘客列表中，请勿重复添加")
 	// 找不到乘客信息
 	ErrPassengerNotExist = errors.New("找不到对应的乘客信息")
+	// 乘客姓名与身份证号不符
+	ErrPassengerName = errors.New("乘客身份证号码与姓名不匹配")
 
 	// 数据库操作错误
 	ErrDbOperation = errors.New("数据库操作错误")

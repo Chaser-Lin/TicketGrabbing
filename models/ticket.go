@@ -8,6 +8,7 @@ type Ticket struct {
 	TrainID       string    `json:"train_id" gorm:"type:varchar(20);not null"`
 	Start         string    `json:"start" gorm:"type:varchar(20);not null"`
 	End           string    `json:"end" gorm:"type:varchar(20);not null"`
+	Duration      string    `json:"duration" gorm:"type:varchar(20);not null"`
 	Stock         uint32    `json:"stock" gorm:"type:int;not null"`
 	Price         uint32    `json:"price" gorm:"type:int;not null"`
 	StartTime     time.Time `json:"start_time" gorm:"type:timestamp;not null"`

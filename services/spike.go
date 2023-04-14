@@ -1,8 +1,8 @@
-package service
+package services
 
 import (
 	"Project/MyProject/cache"
-	"Project/MyProject/dal"
+	"Project/MyProject/dao"
 	"Project/MyProject/event"
 	"Project/MyProject/response"
 	"encoding/json"
@@ -21,13 +21,13 @@ type SpikeServiceImplement interface {
 
 type SpikeService struct {
 	KafkaProducer *event.Producer
-	orderDal      dal.OrderDalImplement
+	orderDal      dao.OrderDaoImplement
 }
 
 func NewSpikeService(producer *event.Producer) SpikeServiceImplement {
 	return &SpikeService{
 		KafkaProducer: producer,
-		orderDal:      dal.NewOrderDal(),
+		orderDal:      dao.NewOrderDao(),
 	}
 }
 

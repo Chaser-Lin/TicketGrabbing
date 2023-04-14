@@ -1,8 +1,8 @@
-package service
+package services
 
 import (
-	"Project/MyProject/dal"
-	"Project/MyProject/dal/models"
+	"Project/MyProject/dao"
+	"Project/MyProject/models"
 	"Project/MyProject/response"
 	"github.com/go-sql-driver/mysql"
 	"gorm.io/gorm"
@@ -25,16 +25,17 @@ type GetRouteService struct {
 type RouteServiceImplement interface {
 	AddRoute(*AddRouteService) error
 	GetRoute(*GetRouteService) (*models.Route, error)
+	DeleteRoute(routeID int) error
 	ListRoutes() ([]models.Route, error)
 	GetRouteByID(routeID int) (*models.Route, error)
 }
 
 // 实现路线服务接口的实例
 type RouteService struct {
-	RouteDal dal.RouteDalImplement
+	RouteDal dao.RouteDaoImplement
 }
 
-func NewRouteServices(routeDal dal.RouteDalImplement) RouteServiceImplement {
+func NewRouteServices(routeDal dao.RouteDaoImplement) RouteServiceImplement {
 	return &RouteService{routeDal}
 }
 
@@ -64,6 +65,18 @@ func (r *RouteService) GetRoute(service *GetRouteService) (*models.Route, error)
 		return nil, response.ErrDbOperation
 	}
 	return route, nil
+}
+
+func (r *RouteService) DeleteRoute(routeID int) error {
+	_, err := r.GetRouteByID(routeID)
+	if err != nil {
+		return err
+	}
+	err = r.RouteDal.UpdateRouteVisibility(routeID)
+	if err != nil {
+		return response.ErrDbOperation
+	}
+	return nil
 }
 
 func (u *RouteService) GetRouteByID(routeID int) (*models.Route, error) {

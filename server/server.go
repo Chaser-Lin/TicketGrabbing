@@ -3,11 +3,11 @@ package server
 import (
 	"Project/MyProject/cache"
 	"Project/MyProject/config"
-	"Project/MyProject/dal"
+	"Project/MyProject/dao"
 	"Project/MyProject/event"
 	h "Project/MyProject/handler"
 	"Project/MyProject/middleware"
-	"Project/MyProject/service"
+	"Project/MyProject/services"
 	"Project/MyProject/utils"
 	"fmt"
 	"github.com/gin-gonic/gin"
@@ -49,14 +49,14 @@ func NewServer(config *config.Config) (*Server, error) {
 
 func (server *Server) setupRouter() {
 
-	userService := service.NewUserServices(dal.NewUserDal())
-	PassengerService := service.NewPassengerServices(dal.NewPassengerDal())
-	routeService := service.NewRouteServices(dal.NewRouteDal())
-	trainService := service.NewTrainServices(dal.NewTrainDal())
-	ticketService := service.NewTicketServices(dal.NewTicketDal())
-	orderService := service.NewOrderServices(dal.NewOrderDal(), dal.NewTicketDal(), dal.NewPassengerDal())
-	emailService := service.NewEmailServices(service.NewVerifyCodeManager())
-	spikeService := service.NewSpikeService(server.kafkaProducer)
+	userService := services.NewUserServices(dao.NewUserDao())
+	PassengerService := services.NewPassengerServices(dao.NewPassengerDao())
+	routeService := services.NewRouteServices(dao.NewRouteDao())
+	trainService := services.NewTrainServices(dao.NewTrainDao())
+	ticketService := services.NewTicketServices(dao.NewTicketDao())
+	orderService := services.NewOrderServices(dao.NewOrderDao(), dao.NewTicketDao(), dao.NewPassengerDao())
+	emailService := services.NewEmailServices(services.NewVerifyCodeManager())
+	spikeService := services.NewSpikeService(server.kafkaProducer)
 
 	var userHandler = h.NewUserHandler(userService, PassengerService, ticketService, orderService, emailService, spikeService)
 	var adminHandler = h.NewAdminHandler(routeService, trainService, ticketService)
@@ -66,10 +66,12 @@ func (server *Server) setupRouter() {
 	// 用户相关路由组
 	userGroup := router.Group("/users")
 	{
-		userGroup.POST("/verify_code", userHandler.SendVerifyCode)     // 发送验证码
-		userGroup.POST("/", userHandler.Register)                      // 用户注册
-		userGroup.POST("/login", userHandler.Login)                    // 用户登录
-		userGroup.GET("/", middleware.Auth(), userHandler.GetUserInfo) // 根据token查询用户信息
+		userGroup.POST("/verify_code", userHandler.SendVerifyCode)                            // 发送验证码
+		userGroup.POST("/", userHandler.Register)                                             // 用户注册
+		userGroup.POST("/login", userHandler.Login)                                           // 用户登录
+		userGroup.GET("/", middleware.Auth(), userHandler.GetUserInfo)                        // 根据token查询用户信息
+		userGroup.POST("/update_password", middleware.Auth(), userHandler.UpdateUserPassword) // 修改密码
+		userGroup.POST("/update_email", middleware.Auth(), userHandler.UpdateUserEmail)       // 修改邮箱
 	}
 	router.GET("/tickets/search", middleware.Auth(), userHandler.ListTicketsOnSale) // 用户通过起点和终点查询在售车票信息
 
@@ -77,13 +79,15 @@ func (server *Server) setupRouter() {
 	router.POST("/spike", middleware.Auth(), middleware.RateLimit(time.Second, 5000, 5000), userHandler.BuyTicket) // 抢票接口
 	//router.POST("/spike", middleware.RateLimit(time.Second, 5000, 5000), userHandler.BuyTicket) // 抢票接口
 
+	router.POST("/tokens/renew_access", userHandler.RenewAccessToken) // 通过refreshToken刷新accessToken
+
 	// 乘客相关路由组
 	passengerGroup := router.Group("/passengers").Use(middleware.Auth())
 	{
-		passengerGroup.POST("/", userHandler.AddPassenger)             // 添加乘客
-		passengerGroup.GET("/", userHandler.ListUserPassengers)        // 获取用户添加的乘客列表
-		passengerGroup.GET("/:passenger_id", userHandler.GetPassenger) // 获取乘客信息
-		passengerGroup.DELETE("/", userHandler.DeletePassenger)        // 删除乘客信息
+		passengerGroup.POST("/", userHandler.AddPassenger)                        // 添加用户的乘客信息
+		passengerGroup.GET("/", userHandler.ListUserPassengers)                   // 获取用户添加的乘客列表
+		passengerGroup.GET("/:user_passenger_id", userHandler.GetPassenger)       // 获取用户的乘客信息
+		passengerGroup.DELETE("/:user_passenger_id", userHandler.DeletePassenger) // 删除用户的乘客信息
 	}
 
 	// 订单相关路由组
@@ -102,15 +106,17 @@ func (server *Server) setupRouter() {
 		routeGroup.POST("/", adminHandler.AddRoute)  // 管理员添加路线
 		routeGroup.GET("/", adminHandler.ListRoutes) // 管理员查询所有路线
 		//routeGroup.GET("/:start/:end", adminHandler.GetRoute)   // 管理员通过起点和终点查询具体路线
-		routeGroup.GET("/:route_id", adminHandler.GetRouteByID) // 管理员通过路线id查询具体路线
+		routeGroup.GET("/:route_id", adminHandler.GetRouteByID)   // 管理员通过路线id查询具体路线
+		routeGroup.DELETE("/:route_id", adminHandler.DeleteRoute) // 管理员通过路线id删除路线
 	}
 
 	// 列车相关路由组
 	trainGroup := router.Group("/trains").Use(middleware.AdminAuth())
 	{
-		trainGroup.POST("/", adminHandler.AddTrain)         // 管理员添加列车
-		trainGroup.GET("/", adminHandler.ListTrains)        // 管理员查询所有列车
-		trainGroup.GET("/:train_id", adminHandler.GetTrain) // 管理员通过列车id查询具体列车信息
+		trainGroup.POST("/", adminHandler.AddTrain)               // 管理员添加列车
+		trainGroup.GET("/", adminHandler.ListTrains)              // 管理员查询所有列车
+		trainGroup.GET("/:train_id", adminHandler.GetTrain)       // 管理员通过列车id查询具体列车信息
+		trainGroup.DELETE("/:train_id", adminHandler.DeleteTrain) // 管理员通过列车id删除列车信息
 	}
 
 	// 车票相关路由组
@@ -121,16 +127,16 @@ func (server *Server) setupRouter() {
 		ticketGroup.GET("/onsale", adminHandler.ListTicketsOnSale)       // 管理员查询某一路线的在售车票信息
 		ticketGroup.GET("/all", adminHandler.ListAllTickets)             // 管理员通查询所有路线的售票信息
 		ticketGroup.GET("/allonsale", adminHandler.ListAllTicketsOnSale) // 管理员查询所有路线的在售车票信息
-		//ticketGroup.GET("/:ticket_id", adminHandler.GetTicket)    // 管理员通过车票id查询售票信息
+		ticketGroup.POST("/stopsell", adminHandler.StopSell)             // 管理员停止售票
 	}
 
 	server.router = router
 }
 
 func (s *Server) StartKafkaConsumer() {
-	kafkaService := service.NewKafkaMQService(s.kafkaConsumer)
-	ticketService := service.NewTicketServices(dal.NewTicketDal())
-	orderService := service.NewOrderServices(dal.NewOrderDal(), dal.NewTicketDal(), dal.NewPassengerDal())
+	kafkaService := services.NewKafkaMQService(s.kafkaConsumer)
+	ticketService := services.NewTicketServices(dao.NewTicketDao())
+	orderService := services.NewOrderServices(dao.NewOrderDao(), dao.NewTicketDao(), dao.NewPassengerDao())
 
 	kafkaService.StartConsumer(orderService, ticketService)
 }
@@ -147,7 +153,7 @@ func (s *Server) Start(addr string) error {
 
 // LoadTicketStocks 缓存预热，在系统开始运行时先读取数据库中的余票信息
 func (s *Server) LoadTicketStocks() error {
-	tickerService := service.NewTicketServices(dal.NewTicketDal())
+	tickerService := services.NewTicketServices(dao.NewTicketDao())
 
 	tickets, err := tickerService.GetAllTickets()
 	if err != nil {
@@ -169,8 +175,8 @@ func (s *Server) LoadTicketStocks() error {
 func (s *Server) AutoDeleteExpireOrder() {
 	ticker := time.NewTicker(time.Second) // 每秒删除一次过期订单记录
 	defer ticker.Stop()
-	orderService := service.NewOrderServices(dal.NewOrderDal(), dal.NewTicketDal(), dal.NewPassengerDal())
-	ticketService := service.NewTicketServices(dal.NewTicketDal())
+	orderService := services.NewOrderServices(dao.NewOrderDao(), dao.NewTicketDao(), dao.NewPassengerDao())
+	ticketService := services.NewTicketServices(dao.NewTicketDao())
 	for range ticker.C {
 		now := time.Now().Unix()
 		orderIDs, err := cache.GetExpiredOrder("0", strconv.Itoa(int(now)))
@@ -192,7 +198,7 @@ func (s *Server) AutoDeleteExpireOrder() {
 				log.Printf("AutoDeleteExpireOrder cache.DeleteOrderLimit error, ticketID:(%v), err:(%v)", ticketID, err)
 			}
 
-			updateOrderStatusService := service.UpdateOrderStatusService{
+			updateOrderStatusService := services.UpdateOrderStatusService{
 				OrderID: orderID,
 				Status:  2, // 订单状态为 2 表示已过期
 			}

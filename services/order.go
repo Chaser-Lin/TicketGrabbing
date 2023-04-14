@@ -1,14 +1,16 @@
-package service
+package services
 
 import (
 	"Project/MyProject/cache"
-	"Project/MyProject/dal"
-	"Project/MyProject/dal/models"
+	"Project/MyProject/dao"
 	"Project/MyProject/event"
+	"Project/MyProject/models"
 	"Project/MyProject/response"
+	"fmt"
 	"github.com/go-sql-driver/mysql"
 	"github.com/google/uuid"
 	"gorm.io/gorm"
+	"log"
 	"time"
 )
 
@@ -41,19 +43,25 @@ type MessageService struct {
 
 // 用于展示给用户的订单信息
 type OrderInfo struct {
-	Passenger     string    `json:"passenger"`
-	OrderID       string    `json:"order_id"`
-	UserID        int       `json:"user_id"`
-	Phone         string    `json:"phone"`
-	Price         uint32    `json:"price"`
-	Start         string    `json:"start"`
-	End           string    `json:"end"`
-	DepartureTime time.Time `json:"departure_time"`
-	ArrivalTime   time.Time `json:"arrival_time"`
-	Status        int       `json:"status"` // 订单状态：0/1/2/3：未支付/已支付/已过期/已取消
-	CreatedAt     time.Time `json:"created_at"`
-	ExpiredAt     time.Time `json:"expired_at"`
+	Passenger        string    `json:"passenger"`
+	OrderID          string    `json:"order_id"`
+	UserID           int       `json:"user_id"`
+	TrainID          string    `json:"train_id"`
+	Phone            string    `json:"phone"`
+	Price            uint32    `json:"price"`
+	Start            string    `json:"start"`
+	End              string    `json:"end"`
+	DepartureTimeDes string    `json:"departure_time_des"`
+	ArrivalTimeDes   string    `json:"arrival_time_des"`
+	DepartureTime    time.Time `json:"departure_time"`
+	ArrivalTime      time.Time `json:"arrival_time"`
+	Status           string    `json:"status"` // 订单状态：未支付/已支付/已过期/已取消
+	CreatedAt        time.Time `json:"created_at"`
+	ExpiredAt        time.Time `json:"expired_at"`
+	UpdatedAt        time.Time `json:"updated_at"`
 }
+
+var orderStatus = []string{"未支付", "购票成功", "已过期", "已取消", "已完成", "行程中", "未出行"}
 
 // 获取订单服务参数
 type GetOrderService struct {
@@ -86,19 +94,19 @@ type OrderServiceImplement interface {
 	UpdateOrderStatus(*UpdateOrderStatusService) error
 	DeleteOrder(orderID string) error
 	GetOrderPassengerAndTicketID(orderID string) (int, int, error)
-	//DeleteOrder(service *DeleteOrderService) error
+	//DeleteOrder(services *DeleteOrderService) error
 }
 
 // 实现订单服务接口的实例
 type OrderService struct {
-	OrderDal     dal.OrderDalImplement
-	TicketDal    dal.TicketDalImplement
-	PassengerDal dal.PassengerDalImplement
+	OrderDal     dao.OrderDaoImplement
+	TicketDal    dao.TicketDaoImplement
+	PassengerDal dao.PassengerDaoImplement
 }
 
-func NewOrderServices(orderDal dal.OrderDalImplement,
-	ticketDal dal.TicketDalImplement,
-	passengerDal dal.PassengerDalImplement) OrderServiceImplement {
+func NewOrderServices(orderDal dao.OrderDaoImplement,
+	ticketDal dao.TicketDaoImplement,
+	passengerDal dao.PassengerDaoImplement) OrderServiceImplement {
 	return &OrderService{
 		OrderDal:     orderDal,
 		TicketDal:    ticketDal,
@@ -116,9 +124,9 @@ func (o *OrderService) AddOrder(service *MessageService) error {
 		PassengerID: service.PassengerID,
 		TicketID:    service.TicketID,
 		Status:      0,
-		Visibility:  true,
 		ExpiredAt:   now.Add(30 * time.Minute),
 	}
+	log.Println(order)
 
 	if err := o.OrderDal.AddOrder(order); err != nil {
 		if mysqlErr, ok := err.(*mysql.MySQLError); ok {
@@ -138,57 +146,6 @@ func (o *OrderService) AddOrder(service *MessageService) error {
 	return nil
 }
 
-//
-//func (o *OrderService) AddOrder(service *AddOrderService) error {
-//	//_, err := o.OrderDal.GetOrder(service.Start, service.End)
-//	//if err == nil {
-//	//	return response.ErrOrderExist
-//	//}
-//
-//	orderID := uuid.New()
-//	now := time.Now()
-//
-//	//userDal := dal.NewUserDal()
-//	//user, err := userDal.GetUserByID(service.UserID)
-//	//if err != nil {
-//	//	return err
-//	//}
-//	//
-//	//ticketDal := dal.NewTicketDal()
-//	//ticket, err := ticketDal.GetTicket(service.TicketID)
-//	//if err != nil {
-//	//	return err
-//	//}
-//
-//	order := &models.Order{
-//		OrderID:       orderID,
-//		UserID:         service.UserID,
-//		Passenger:     service.Passenger,
-//		Phone:         service.Phone,
-//		TicketID:      service.TicketID,
-//		Price:         service.Price,
-//		Start:         service.Start,
-//		End:           service.End,
-//		TrainID:       service.TrainID,
-//		DepartureTime: service.DepartureTime,
-//		ArrivalTime:   service.ArrivalTime,
-//		Status:        0,
-//		Visibility:    true,
-//		CreatedAt:     now,
-//		ExpiredAt:     now.Add(30 * time.Minute),
-//	}
-//
-//	if err := o.OrderDal.AddOrder(order); err != nil {
-//		if mysqlErr, ok := err.(*mysql.MySQLError); ok {
-//			if mysqlErr.Number == 1062 { // 1062:Duplicate，重复数据
-//				return response.ErrSameOrderExist
-//			}
-//		}
-//		return response.ErrDbOperation
-//	}
-//	return nil
-//}
-
 func (o *OrderService) GetOrder(orderID string) (*models.Order, error) {
 	order, err := o.OrderDal.GetOrder(orderID)
 	if err == gorm.ErrRecordNotFound {
@@ -196,9 +153,6 @@ func (o *OrderService) GetOrder(orderID string) (*models.Order, error) {
 	} else if err != nil {
 		return nil, response.ErrDbOperation
 	}
-	order.Ticket, _ = o.TicketDal.GetTicket(order.TicketID)
-	order.Passenger, _ = o.PassengerDal.GetPassengerByID(order.PassengerID)
-
 	return order, nil
 }
 
@@ -207,7 +161,15 @@ func (o *OrderService) GetOrderInfo(orderID string) (*OrderInfo, error) {
 	if err != nil {
 		return nil, err
 	}
-	return parseOrderToInfo(order), nil
+	ticket, err := o.TicketDal.GetTicket(order.TicketID)
+	if err != nil {
+		return nil, response.ErrDbOperation
+	}
+	passenger, err := o.PassengerDal.GetPassengerByID(order.PassengerID)
+	if err != nil {
+		return nil, response.ErrDbOperation
+	}
+	return parseOrderToInfo(order, ticket, passenger), nil
 }
 
 func (o *OrderService) GetOrderPassengerAndTicketID(orderID string) (int, int, error) {
@@ -227,9 +189,15 @@ func (o *OrderService) ListOrders(userID int) ([]*OrderInfo, error) {
 	}
 	orderInfos := make([]*OrderInfo, 0)
 	for _, order := range orders {
-		order.Ticket, _ = o.TicketDal.GetTicket(order.TicketID)
-		order.Passenger, _ = o.PassengerDal.GetPassengerByID(order.PassengerID)
-		orderInfos = append(orderInfos, parseOrderToInfo(&order))
+		ticket, err := o.TicketDal.GetTicket(order.TicketID)
+		if err != nil {
+			return nil, response.ErrDbOperation
+		}
+		passenger, err := o.PassengerDal.GetPassengerByID(order.PassengerID)
+		if err != nil {
+			return nil, response.ErrDbOperation
+		}
+		orderInfos = append(orderInfos, parseOrderToInfo(&order, ticket, passenger))
 	}
 	return orderInfos, nil
 }
@@ -265,18 +233,33 @@ func (o *OrderService) DeleteOrder(orderID string) error {
 	return nil
 }
 
-func parseOrderToInfo(order *models.Order) *OrderInfo {
+func parseOrderToInfo(order *models.Order, ticket *models.Ticket, passenger *models.Passenger) *OrderInfo {
+	status := orderStatus[order.Status]
+
+	if order.Status == 1 {
+		if time.Now().After(ticket.ArrivalTime) {
+			status = orderStatus[4]
+		} else if time.Now().After(ticket.DepartureTime) {
+			status = orderStatus[5]
+		} else {
+			status = orderStatus[6]
+		}
+	}
 	return &OrderInfo{
-		OrderID:       order.OrderID.String(),
-		Passenger:     order.Passenger.Name,
-		Phone:         order.Passenger.Phone,
-		Price:         order.Ticket.Price,
-		Start:         order.Ticket.Start,
-		End:           order.Ticket.End,
-		DepartureTime: order.Ticket.DepartureTime,
-		ArrivalTime:   order.Ticket.ArrivalTime,
-		Status:        order.Status,
-		//CreatedAt:     order.CreatedAt,
-		ExpiredAt: order.ExpiredAt,
+		OrderID:          order.OrderID.String(),
+		TrainID:          ticket.TrainID,
+		Passenger:        passenger.Name,
+		Phone:            passenger.Phone,
+		Price:            ticket.Price,
+		Start:            ticket.Start,
+		End:              ticket.End,
+		DepartureTime:    ticket.DepartureTime,
+		ArrivalTime:      ticket.ArrivalTime,
+		DepartureTimeDes: fmt.Sprintf("%d月%02d日 %d:%02d出发", ticket.DepartureTime.Month(), ticket.DepartureTime.Day(), ticket.DepartureTime.Hour(), ticket.DepartureTime.Minute()), //ticket.DepartureTime,
+		ArrivalTimeDes:   fmt.Sprintf("预计%d月%02d日 %d:%02d到达", ticket.ArrivalTime.Month(), ticket.ArrivalTime.Day(), ticket.ArrivalTime.Hour(), ticket.ArrivalTime.Minute()),       //ticket.ArrivalTime,
+		Status:           status,
+		CreatedAt:        order.CreatedAt,
+		ExpiredAt:        order.ExpiredAt,
+		UpdatedAt:        order.UpdatedAt,
 	}
 }

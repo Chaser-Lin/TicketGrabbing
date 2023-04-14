@@ -1,11 +1,12 @@
-package service
+package services
 
 import (
-	"Project/MyProject/dal"
-	"Project/MyProject/dal/models"
+	"Project/MyProject/dao"
+	"Project/MyProject/models"
 	"Project/MyProject/response"
 	"github.com/go-sql-driver/mysql"
 	"gorm.io/gorm"
+	"log"
 )
 
 // 添加乘车人服务参数
@@ -22,11 +23,6 @@ type DeletePassengerService struct {
 	UserPassengerID int `json:"user_passenger_id" form:"user_passenger_id" binding:"required"`
 }
 
-// 获取乘车人信息服务参数
-type GetPassengerService struct {
-	UserPassengerID int `json:"user_passenger_id" form:"user_passenger_id" binding:"required"`
-}
-
 // 获取乘车人列表服务参数
 type ListUserPassengersService struct {
 	UserID int `json:"user_id" form:"user_id"`
@@ -35,6 +31,8 @@ type ListUserPassengersService struct {
 // 用于展示给用户的乘车人信息
 type PassengerInfo struct {
 	UserPassengerID int    `json:"user_passenger_id"`
+	UserID          int    `json:"user_id"`
+	PassengerID     int    `json:"passenger_id"`
 	Name            string `json:"name"`
 	IdNumber        string `json:"id_number"`
 	Phone           string `json:"phone"`
@@ -44,16 +42,17 @@ type PassengerInfo struct {
 type PassengerServiceImplement interface {
 	AddPassenger(*AddPassengerService) error
 	DeletePassenger(*DeletePassengerService) error
-	GetPassenger(*GetPassengerService) (*PassengerInfo, error)
+	GetPassenger(userPassengerID int) (*PassengerInfo, error)
+	CheckPassengerBelongToUser(passengerID, userID int) (bool, error)
 	ListPassengers(*ListUserPassengersService) ([]*PassengerInfo, error)
 }
 
 // 实现乘车人服务接口的实例
 type PassengerService struct {
-	PassengerDal dal.PassengerDalImplement
+	PassengerDal dao.PassengerDaoImplement
 }
 
-func NewPassengerServices(passengerDal dal.PassengerDalImplement) PassengerServiceImplement {
+func NewPassengerServices(passengerDal dao.PassengerDaoImplement) PassengerServiceImplement {
 	return &PassengerService{passengerDal}
 }
 
@@ -70,10 +69,11 @@ func (p *PassengerService) AddPassenger(service *AddPassengerService) error {
 			}
 			err = p.PassengerDal.AddPassenger(passenger)
 			if err != nil {
-				return response.ErrDbOperation
+				return response.ErrPassengerName
 			}
+		} else {
+			return response.ErrDbOperation
 		}
-		return response.ErrDbOperation
 	}
 	// 添加用户拥有的乘客信息
 	userPassenger := &models.UserPassenger{
@@ -82,6 +82,7 @@ func (p *PassengerService) AddPassenger(service *AddPassengerService) error {
 	}
 
 	if err := p.PassengerDal.AddUserPassenger(userPassenger); err != nil {
+		log.Println("AddPassenger PassengerDao.AddUserPassenger err: ", err)
 		if mysqlErr, ok := err.(*mysql.MySQLError); ok {
 			if mysqlErr.Number == 1062 { // 1062:Duplicate，重复数据
 				return response.ErrSamePassengerExist
@@ -101,15 +102,26 @@ func (p *PassengerService) DeletePassenger(service *DeletePassengerService) erro
 	return nil
 }
 
-func (p *PassengerService) GetPassenger(service *GetPassengerService) (*PassengerInfo, error) {
-	userPassenger, err := p.PassengerDal.GetUserPassenger(service.UserPassengerID)
+func (p *PassengerService) GetPassenger(userPassengerID int) (*PassengerInfo, error) {
+	userPassenger, err := p.PassengerDal.GetUserPassenger(userPassengerID)
 	if err == gorm.ErrRecordNotFound {
 		return nil, response.ErrPassengerNotExist
 	} else if err != nil {
 		return nil, response.ErrDbOperation
 	}
 	passenger, err := p.PassengerDal.GetPassengerByID(userPassenger.PassengerID)
-	return parsePassengerToInfo(passenger, userPassenger.ID), nil
+	return parsePassengerToInfo(passenger, userPassenger), nil
+}
+
+func (p *PassengerService) CheckPassengerBelongToUser(passengerID, userID int) (bool, error) {
+	if err := p.PassengerDal.CheckPassengerBelongToUser(passengerID, userID); err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return false, response.ErrPassengerNotExist
+		} else if err != nil {
+			return false, response.ErrDbOperation
+		}
+	}
+	return true, nil
 }
 
 func (p *PassengerService) ListPassengers(service *ListUserPassengersService) ([]*PassengerInfo, error) {
@@ -125,14 +137,16 @@ func (p *PassengerService) ListPassengers(service *ListUserPassengersService) ([
 		if err != nil {
 			return nil, response.ErrDbOperation
 		}
-		passengerInfos[i] = parsePassengerToInfo(passenger, userPassenger.ID)
+		passengerInfos[i] = parsePassengerToInfo(passenger, &userPassenger)
 	}
 	return passengerInfos, nil
 }
 
-func parsePassengerToInfo(passenger *models.Passenger, userPassengerID int) *PassengerInfo {
+func parsePassengerToInfo(passenger *models.Passenger, userPassenger *models.UserPassenger) *PassengerInfo {
 	return &PassengerInfo{
-		UserPassengerID: userPassengerID,
+		UserPassengerID: userPassenger.ID,
+		UserID:          userPassenger.UserID,
+		PassengerID:     passenger.PassengerID,
 		Name:            passenger.Name,
 		IdNumber:        passenger.IDNumber,
 		Phone:           passenger.Phone,

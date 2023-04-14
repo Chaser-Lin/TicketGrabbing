@@ -1,9 +1,9 @@
-package service
+package services
 
 import (
 	"Project/MyProject/cache"
-	"Project/MyProject/dal"
-	"Project/MyProject/dal/models"
+	"Project/MyProject/dao"
+	"Project/MyProject/models"
 	"Project/MyProject/response"
 	"Project/MyProject/utils"
 	"github.com/go-sql-driver/mysql"
@@ -25,6 +25,7 @@ type AddTicketService struct {
 	Stock       uint32    `json:"stock" form:"stock"`
 	Start       string    `json:"start" form:"start"`
 	End         string    `json:"end" form:"end"`
+	Duration    string    `json:"duration" form:"duration"`
 	EndTime     time.Time `json:"end_time" form:"end_time"` // 结束购票时间，默认为列车发车时间
 	ArrivalTime time.Time `json:"arrival_time" form:"arrival_time"`
 }
@@ -47,6 +48,11 @@ type GetTicketService struct {
 	TicketID int `json:"ticket_id" form:"ticket_id" binding:"required,number"`
 }
 
+// 停止售票服务参数
+type StopSellTicketService struct {
+	TicketID int `json:"ticket_id" form:"ticket_id" binding:"required,number"`
+}
+
 // 车票相关服务接口：车票发售、查询车票
 type TicketServiceImplement interface {
 	AddTicket(*AddTicketService) error
@@ -57,15 +63,16 @@ type TicketServiceImplement interface {
 	AddNumberOne(ticketID int) (err error)
 	GetAllTickets() ([]models.Ticket, error)
 	GetAllTicketsOnSale() ([]models.Ticket, error)
+	StopSellTicket(*StopSellTicketService) error
 	//GetTicket(TicketID int) (*models.Ticket, error)
 }
 
 // 实现列车相关服务接口的实例
 type TicketService struct {
-	TicketDal dal.TicketDalImplement
+	TicketDal dao.TicketDaoImplement
 }
 
-func NewTicketServices(ticketDal dal.TicketDalImplement) TicketServiceImplement {
+func NewTicketServices(ticketDal dao.TicketDaoImplement) TicketServiceImplement {
 	return &TicketService{ticketDal}
 }
 
@@ -81,10 +88,11 @@ func (t *TicketService) AddTicket(service *AddTicketService) error {
 		TrainID:       service.TrainID,
 		Start:         service.Start,
 		End:           service.End,
+		Duration:      service.Duration,
 		Stock:         service.Stock,
 		Price:         service.Price,
 		StartTime:     startTime,
-		EndTime:       departureTime,
+		EndTime:       departureTime.Add(-10 * time.Minute),
 		DepartureTime: departureTime,
 		ArrivalTime:   service.ArrivalTime,
 	}
@@ -178,6 +186,18 @@ func (t *TicketService) AddNumberOne(ticketID int) (err error) {
 	return
 }
 
+func (t *TicketService) StopSellTicket(service *StopSellTicketService) error {
+	_, err := t.GetTicket(service.TicketID)
+	if err != nil {
+		return err
+	}
+	err = t.TicketDal.UpdateTicketEndTime(service.TicketID, time.Now())
+	if err != nil {
+		return response.ErrDbOperation
+	}
+	return nil
+}
+
 //func (u *TicketService) GetTicketByID(ticketID int) (*models.Ticket, error) {
-//	return u.TicketDal.GetTicketByID(ticketID)
+//	return u.TicketDao.GetTicketByID(ticketID)
 //}

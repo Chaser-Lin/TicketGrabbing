@@ -1,4 +1,4 @@
-package service
+package services
 
 import (
 	"Project/MyProject/response"
@@ -124,8 +124,6 @@ func (manager *VerifyCodeManager) SendVerifyCodeToEmail(email string) error {
 		ExpiredTime: expiredTime,
 	}
 
-	log.Printf("email:(%s), verifyCode:(%s)", email, verifyCode)
-
 	manager.AddVerifyCodeMessage(email, message)
 
 	content := fmt.Sprintf(`
@@ -147,5 +145,6 @@ func (manager *VerifyCodeManager) SendVerifyCodeToEmail(email string) error {
 	if err != nil {
 		return response.ErrInvalidEmail
 	}
+	log.Printf("email:(%s), verifyCode:(%s)", email, verifyCode)
 	return nil
 }

@@ -1,8 +1,8 @@
-package service
+package services
 
 import (
-	"Project/MyProject/dal"
-	"Project/MyProject/dal/models"
+	"Project/MyProject/dao"
+	"Project/MyProject/models"
 	"Project/MyProject/response"
 	"github.com/go-sql-driver/mysql"
 	"gorm.io/gorm"
@@ -26,14 +26,27 @@ type TrainServiceImplement interface {
 	ListTrains() ([]models.Train, error)
 	//GetTrain(*GetTrainService) (*models.Train, error)
 	GetTrain(trainID string) (*models.Train, error)
+	DeleteTrain(trainID string) error
 }
 
 // 实现列车相关服务接口的实例
 type TrainService struct {
-	TrainDal dal.TrainDalImplement
+	TrainDal dao.TrainDaoImplement
 }
 
-func NewTrainServices(trainDal dal.TrainDalImplement) TrainServiceImplement {
+func (t *TrainService) DeleteTrain(trainID string) error {
+	_, err := t.GetTrain(trainID)
+	if err != nil {
+		return err
+	}
+	err = t.TrainDal.UpdateTrainVisibility(trainID)
+	if err != nil {
+		return response.ErrDbOperation
+	}
+	return nil
+}
+
+func NewTrainServices(trainDal dao.TrainDaoImplement) TrainServiceImplement {
 	return &TrainService{trainDal}
 }
 
@@ -65,8 +78,8 @@ func (t *TrainService) ListTrains() ([]models.Train, error) {
 	return trains, nil
 }
 
-//func (u *TrainService) GetTrain(service *GetTrainService) (*models.Train, error) {
-//	return u.TrainDal.GetTrain(service.TrainID)
+//func (u *TrainService) GetTrain(services *GetTrainService) (*models.Train, error) {
+//	return u.TrainDao.GetTrain(services.TrainID)
 //}
 
 func (t *TrainService) GetTrain(trainID string) (*models.Train, error) {
