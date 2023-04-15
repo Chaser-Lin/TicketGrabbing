@@ -170,16 +170,18 @@ func (handler *UserHandler) UpdateUserEmail(ctx *gin.Context) {
 			R.Error(ctx, err.Error(), nil)
 			return
 		}
+		// 获取当前用户信息
 		userInfo, err := handler.UserService.GetUserInfo(updateUserInfoService.UserID)
 		if err != nil {
 			R.Error(ctx, err.Error(), nil)
 			return
 		}
+		// 判断新邮箱地址与旧邮箱地址是否相同
 		if userInfo.Email == updateUserInfoService.Email {
 			R.Error(ctx, "该邮箱与当前用户邮箱相同，不需要更改！", nil)
 			return
 		}
-		// 判断邮箱是否被注册
+		// 判断新邮箱地址是否已被注册
 		if exist, err := handler.UserService.CheckUserExist(updateUserInfoService.Email); err != nil || exist {
 			R.Error(ctx, err.Error(), nil)
 			return
@@ -208,11 +210,13 @@ func (handler *UserHandler) UpdateUserPassword(ctx *gin.Context) {
 			R.Error(ctx, err.Error(), nil)
 			return
 		}
+		// 获取当前用户信息
 		userInfo, err := handler.UserService.GetUserInfo(updateUserInfoService.UserID)
 		if err != nil {
 			R.Error(ctx, err.Error(), nil)
 			return
 		}
+		// 验证原密码
 		if err = utils.CheckPassword(userInfo.HashedPassword, updateUserInfoService.OldPassword); err != nil {
 			R.Error(ctx, "修改密码失败，原密码输入错误", nil)
 			return

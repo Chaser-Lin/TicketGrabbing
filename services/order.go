@@ -99,18 +99,18 @@ type OrderServiceImplement interface {
 
 // 实现订单服务接口的实例
 type OrderService struct {
-	OrderDal     dao.OrderDaoImplement
-	TicketDal    dao.TicketDaoImplement
-	PassengerDal dao.PassengerDaoImplement
+	OrderDao     dao.OrderDaoImplement
+	TicketDao    dao.TicketDaoImplement
+	PassengerDao dao.PassengerDaoImplement
 }
 
 func NewOrderServices(orderDal dao.OrderDaoImplement,
 	ticketDal dao.TicketDaoImplement,
 	passengerDal dao.PassengerDaoImplement) OrderServiceImplement {
 	return &OrderService{
-		OrderDal:     orderDal,
-		TicketDal:    ticketDal,
-		PassengerDal: passengerDal,
+		OrderDao:     orderDal,
+		TicketDao:    ticketDal,
+		PassengerDao: passengerDal,
 	}
 }
 
@@ -128,7 +128,7 @@ func (o *OrderService) AddOrder(service *MessageService) error {
 	}
 	log.Println(order)
 
-	if err := o.OrderDal.AddOrder(order); err != nil {
+	if err := o.OrderDao.AddOrder(order); err != nil {
 		if mysqlErr, ok := err.(*mysql.MySQLError); ok {
 			if mysqlErr.Number == 1062 { // 1062:Duplicate，重复数据
 				return response.ErrSameOrderExist
@@ -147,7 +147,7 @@ func (o *OrderService) AddOrder(service *MessageService) error {
 }
 
 func (o *OrderService) GetOrder(orderID string) (*models.Order, error) {
-	order, err := o.OrderDal.GetOrder(orderID)
+	order, err := o.OrderDao.GetOrder(orderID)
 	if err == gorm.ErrRecordNotFound {
 		return nil, response.ErrOrderNotExist
 	} else if err != nil {
@@ -161,11 +161,11 @@ func (o *OrderService) GetOrderInfo(orderID string) (*OrderInfo, error) {
 	if err != nil {
 		return nil, err
 	}
-	ticket, err := o.TicketDal.GetTicket(order.TicketID)
+	ticket, err := o.TicketDao.GetTicket(order.TicketID)
 	if err != nil {
 		return nil, response.ErrDbOperation
 	}
-	passenger, err := o.PassengerDal.GetPassengerByID(order.PassengerID)
+	passenger, err := o.PassengerDao.GetPassengerByID(order.PassengerID)
 	if err != nil {
 		return nil, response.ErrDbOperation
 	}
@@ -181,7 +181,7 @@ func (o *OrderService) GetOrderPassengerAndTicketID(orderID string) (int, int, e
 }
 
 func (o *OrderService) ListOrders(userID int) ([]*OrderInfo, error) {
-	orders, err := o.OrderDal.ListOrders(userID)
+	orders, err := o.OrderDao.ListOrders(userID)
 	if err == gorm.ErrRecordNotFound {
 		return nil, response.EmptyOrderList
 	} else if err != nil {
@@ -189,11 +189,11 @@ func (o *OrderService) ListOrders(userID int) ([]*OrderInfo, error) {
 	}
 	orderInfos := make([]*OrderInfo, 0)
 	for _, order := range orders {
-		ticket, err := o.TicketDal.GetTicket(order.TicketID)
+		ticket, err := o.TicketDao.GetTicket(order.TicketID)
 		if err != nil {
 			return nil, response.ErrDbOperation
 		}
-		passenger, err := o.PassengerDal.GetPassengerByID(order.PassengerID)
+		passenger, err := o.PassengerDao.GetPassengerByID(order.PassengerID)
 		if err != nil {
 			return nil, response.ErrDbOperation
 		}
@@ -203,21 +203,21 @@ func (o *OrderService) ListOrders(userID int) ([]*OrderInfo, error) {
 }
 
 func (o *OrderService) UpdateOrderStatus(service *UpdateOrderStatusService) error {
+	// 获取订单，判断订单是否存在
 	_, err := o.GetOrder(service.OrderID)
 	if err != nil {
 		return err
 	}
-	err = o.OrderDal.UpdateOrderStatus(service.OrderID, service.Status)
+	// 更新订单状态
+	err = o.OrderDao.UpdateOrderStatus(service.OrderID, service.Status)
 	if err != nil {
 		return response.ErrUpdateOrderStatus
 	}
-
-	// 更新订单状态时，同时更新redis缓存中的订单状态
+	// 更新redis缓存中的订单状态
 	err = cache.RemoveFinishOrder(service.OrderID)
 	if err != nil {
 		return response.ErrRedisOperation
 	}
-
 	return nil
 }
 
@@ -226,7 +226,7 @@ func (o *OrderService) DeleteOrder(orderID string) error {
 	if err != nil {
 		return err
 	}
-	err = o.OrderDal.UpdateOrderVisibility(orderID)
+	err = o.OrderDao.UpdateOrderVisibility(orderID)
 	if err != nil {
 		return response.ErrDbOperation
 	}

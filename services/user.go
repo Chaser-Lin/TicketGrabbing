@@ -62,7 +62,7 @@ type UserServiceImplement interface {
 
 // 实现用户服务接口的实例
 type UserService struct {
-	UserDal dao.UserDaoImplement
+	UserDao dao.UserDaoImplement
 }
 
 func NewUserServices(userDal dao.UserDaoImplement) UserServiceImplement {
@@ -90,41 +90,45 @@ func (u *UserService) Login(service *UserLoginService) (accessToken string, refr
 	if service.Email == AdminEmail {
 		isAdmin = true
 	}
-	userInfo, err = u.UserDal.GetUserByEmail(service.Email)
+	// 判断用户是否存在，获取用户信息
+	userInfo, err = u.UserDao.GetUserByEmail(service.Email)
 	if err != nil {
 		err = response.ErrWrongPassword
 		return
 	}
+	// 验证密码是否正确
 	if err = utils.CheckPassword(userInfo.HashedPassword, service.Password); err != nil {
 		err = response.ErrWrongPassword
 		return
 	}
+	// 生成access_token
 	accessToken, _, err = utils.TokenMaker.CreateToken(userInfo.UserID, userInfo.Email, utils.AccessTokenDurationTime)
 	if err != nil {
 		err = response.ErrCreateToken
 		return
 	}
+	// 生成refresh_token
 	refreshToken, _, err = utils.TokenMaker.CreateToken(userInfo.UserID, userInfo.Email, utils.RefreshTokenDurationTime)
 	if err != nil {
 		err = response.ErrCreateToken
 		return
 	}
+	// 将refresh_token保存在redis中
 	err = cache.SetSession(userInfo.UserID, refreshToken)
 	if err != nil {
 		err = response.ErrRedisOperation
 		return
 	}
-	//}
-
 	return
 }
 
 func (u *UserService) Register(service *UserRegisterService) error {
-	_, err := u.UserDal.GetUserByEmail(service.Email)
+	// 判断邮箱是否已被注册
+	_, err := u.UserDao.GetUserByEmail(service.Email)
 	if err == nil {
 		return response.ErrEmailExist
 	}
-
+	// 使用Bcrypt算法加密密码
 	hashedPassword, err := utils.HashPassword(service.Password)
 	if err != nil {
 		return response.ErrEncrypt
@@ -134,10 +138,10 @@ func (u *UserService) Register(service *UserRegisterService) error {
 		HashedPassword: hashedPassword,
 		Username:       service.Username,
 	}
-
-	if err = u.UserDal.AddUser(user); err != nil {
+	// 写入数据库
+	if err = u.UserDao.AddUser(user); err != nil {
 		if mysqlErr, ok := err.(*mysql.MySQLError); ok {
-			if mysqlErr.Number == 1062 { // 1062:Duplicate，重复数据
+			if mysqlErr.Number == 1062 {
 				return response.ErrUserExist
 			}
 		}
@@ -147,7 +151,7 @@ func (u *UserService) Register(service *UserRegisterService) error {
 }
 
 func (u *UserService) GetUserInfo(userID int) (*models.User, error) {
-	user, err := u.UserDal.GetUserByID(userID)
+	user, err := u.UserDao.GetUserByID(userID)
 	if err == gorm.ErrRecordNotFound {
 		return nil, response.ErrUserNotExist
 	} else if err != nil {
@@ -166,7 +170,7 @@ func (u *UserService) UpdatePassword(service *UpdatePasswordService) error {
 		HashedPassword: hashedPassword,
 	}
 
-	err = u.UserDal.UpdateUser(user)
+	err = u.UserDao.UpdateUser(user)
 	if err == gorm.ErrRecordNotFound {
 		return response.ErrUserNotExist
 	} else if err != nil {
@@ -181,7 +185,7 @@ func (u *UserService) UpdateUsername(service *UpdateUsernameService) error {
 		Username: service.Username,
 	}
 
-	err := u.UserDal.UpdateUser(user)
+	err := u.UserDao.UpdateUser(user)
 	if err == gorm.ErrRecordNotFound {
 		return response.ErrUserNotExist
 	} else if err != nil {
@@ -196,7 +200,7 @@ func (u *UserService) UpdateEmail(service *UpdateEmailService) error {
 		Email:  service.Email,
 	}
 
-	err := u.UserDal.UpdateUser(user)
+	err := u.UserDao.UpdateUser(user)
 	if err == gorm.ErrRecordNotFound {
 		return response.ErrUserNotExist
 	} else if err != nil {
@@ -206,7 +210,7 @@ func (u *UserService) UpdateEmail(service *UpdateEmailService) error {
 }
 
 func (u *UserService) CheckUserExist(email string) (exist bool, err error) {
-	_, err = u.UserDal.GetUserByEmail(email)
+	_, err = u.UserDao.GetUserByEmail(email)
 	if err == gorm.ErrRecordNotFound {
 		return false, nil
 	} else if err != nil {

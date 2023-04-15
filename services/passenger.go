@@ -49,7 +49,7 @@ type PassengerServiceImplement interface {
 
 // 实现乘车人服务接口的实例
 type PassengerService struct {
-	PassengerDal dao.PassengerDaoImplement
+	PassengerDao dao.PassengerDaoImplement
 }
 
 func NewPassengerServices(passengerDal dao.PassengerDaoImplement) PassengerServiceImplement {
@@ -58,7 +58,7 @@ func NewPassengerServices(passengerDal dao.PassengerDaoImplement) PassengerServi
 
 func (p *PassengerService) AddPassenger(service *AddPassengerService) error {
 	// 判断乘客信息是否在系统中
-	passenger, err := p.PassengerDal.GetPassenger(service.Name, service.IDNumber)
+	passenger, err := p.PassengerDao.GetPassenger(service.Name, service.IDNumber)
 	if err != nil {
 		// 不存在则添加乘客信息
 		if err == gorm.ErrRecordNotFound {
@@ -67,7 +67,7 @@ func (p *PassengerService) AddPassenger(service *AddPassengerService) error {
 				IDNumber: service.IDNumber,
 				Phone:    service.Phone,
 			}
-			err = p.PassengerDal.AddPassenger(passenger)
+			err = p.PassengerDao.AddPassenger(passenger)
 			if err != nil {
 				return response.ErrPassengerName
 			}
@@ -81,7 +81,7 @@ func (p *PassengerService) AddPassenger(service *AddPassengerService) error {
 		PassengerID: passenger.PassengerID,
 	}
 
-	if err := p.PassengerDal.AddUserPassenger(userPassenger); err != nil {
+	if err := p.PassengerDao.AddUserPassenger(userPassenger); err != nil {
 		log.Println("AddPassenger PassengerDao.AddUserPassenger err: ", err)
 		if mysqlErr, ok := err.(*mysql.MySQLError); ok {
 			if mysqlErr.Number == 1062 { // 1062:Duplicate，重复数据
@@ -95,7 +95,7 @@ func (p *PassengerService) AddPassenger(service *AddPassengerService) error {
 }
 
 func (p *PassengerService) DeletePassenger(service *DeletePassengerService) error {
-	err := p.PassengerDal.DeleteUserPassenger(service.UserPassengerID)
+	err := p.PassengerDao.DeleteUserPassenger(service.UserPassengerID)
 	if err != nil {
 		return response.ErrDbOperation
 	}
@@ -103,18 +103,18 @@ func (p *PassengerService) DeletePassenger(service *DeletePassengerService) erro
 }
 
 func (p *PassengerService) GetPassenger(userPassengerID int) (*PassengerInfo, error) {
-	userPassenger, err := p.PassengerDal.GetUserPassenger(userPassengerID)
+	userPassenger, err := p.PassengerDao.GetUserPassenger(userPassengerID)
 	if err == gorm.ErrRecordNotFound {
 		return nil, response.ErrPassengerNotExist
 	} else if err != nil {
 		return nil, response.ErrDbOperation
 	}
-	passenger, err := p.PassengerDal.GetPassengerByID(userPassenger.PassengerID)
+	passenger, err := p.PassengerDao.GetPassengerByID(userPassenger.PassengerID)
 	return parsePassengerToInfo(passenger, userPassenger), nil
 }
 
 func (p *PassengerService) CheckPassengerBelongToUser(passengerID, userID int) (bool, error) {
-	if err := p.PassengerDal.CheckPassengerBelongToUser(passengerID, userID); err != nil {
+	if err := p.PassengerDao.CheckPassengerBelongToUser(passengerID, userID); err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return false, response.ErrPassengerNotExist
 		} else if err != nil {
@@ -125,7 +125,7 @@ func (p *PassengerService) CheckPassengerBelongToUser(passengerID, userID int) (
 }
 
 func (p *PassengerService) ListPassengers(service *ListUserPassengersService) ([]*PassengerInfo, error) {
-	userPassengers, err := p.PassengerDal.ListUserPassengers(service.UserID)
+	userPassengers, err := p.PassengerDao.ListUserPassengers(service.UserID)
 	if err == gorm.ErrRecordNotFound {
 		return nil, response.ErrPassengerNotExist
 	} else if err != nil {
@@ -133,7 +133,7 @@ func (p *PassengerService) ListPassengers(service *ListUserPassengersService) ([
 	}
 	passengerInfos := make([]*PassengerInfo, len(userPassengers))
 	for i, userPassenger := range userPassengers {
-		passenger, err := p.PassengerDal.GetPassengerByID(userPassenger.PassengerID)
+		passenger, err := p.PassengerDao.GetPassengerByID(userPassenger.PassengerID)
 		if err != nil {
 			return nil, response.ErrDbOperation
 		}

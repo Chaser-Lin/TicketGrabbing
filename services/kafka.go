@@ -49,7 +49,7 @@ func (k *KafkaMQService) StartConsumer(orderService OrderServiceImplement, ticke
 					continue
 				}
 
-				// 补偿策略：在同一时间内存在多个相同请求的情况，将库存加回来
+				// 补偿策略：在同一时间内存在多个相同请求的情况，将库存加回来，避免出现少卖问题
 				exist, err := cache.OrderLimit(message.PassengerID, message.TicketID)
 				if err != nil {
 					log.Println("StartConsumer cache.OrderLimit err:", err)
@@ -63,18 +63,18 @@ func (k *KafkaMQService) StartConsumer(orderService OrderServiceImplement, ticke
 					}
 					continue
 				}
-
+				// 添加订单
 				err = orderService.AddOrder(message)
 				if err != nil {
 					log.Println("StartConsumer orderService.AddOrder err:", err)
 					continue
 				}
+				// 添加该乘客的购票限制
 				err = cache.AddOrderLimit(message.PassengerID, message.TicketID)
 				if err != nil {
 					log.Println("StartConsumer cache.AddOrderLimit err:", err)
 				}
-
-				// 如果减库存失败，但是redis中已经预扣成功，不会导致超卖问题
+				// mysql实际扣库存
 				err = ticketService.SubNumberOne(message.TicketID)
 				if err != nil {
 					log.Println("StartConsumer ticketService.SubNumberOne err:", err)

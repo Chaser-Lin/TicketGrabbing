@@ -32,7 +32,7 @@ type RouteServiceImplement interface {
 
 // 实现路线服务接口的实例
 type RouteService struct {
-	RouteDal dao.RouteDaoImplement
+	RouteDao dao.RouteDaoImplement
 }
 
 func NewRouteServices(routeDal dao.RouteDaoImplement) RouteServiceImplement {
@@ -46,7 +46,7 @@ func (r *RouteService) AddRoute(service *AddRouteService) error {
 		Length: service.Length,
 	}
 
-	if err := r.RouteDal.AddRoute(route); err != nil {
+	if err := r.RouteDao.AddRoute(route); err != nil {
 		if mysqlErr, ok := err.(*mysql.MySQLError); ok {
 			if mysqlErr.Number == 1062 { // 1062:Duplicate，重复数据
 				return response.ErrRouteExist
@@ -58,7 +58,7 @@ func (r *RouteService) AddRoute(service *AddRouteService) error {
 }
 
 func (r *RouteService) GetRoute(service *GetRouteService) (*models.Route, error) {
-	route, err := r.RouteDal.GetRoute(service.Start, service.End)
+	route, err := r.RouteDao.GetRoute(service.Start, service.End)
 	if err == gorm.ErrRecordNotFound {
 		return nil, response.ErrRouteNotExist
 	} else if err != nil {
@@ -72,7 +72,7 @@ func (r *RouteService) DeleteRoute(routeID int) error {
 	if err != nil {
 		return err
 	}
-	err = r.RouteDal.UpdateRouteVisibility(routeID)
+	err = r.RouteDao.UpdateRouteVisibility(routeID)
 	if err != nil {
 		return response.ErrDbOperation
 	}
@@ -80,7 +80,7 @@ func (r *RouteService) DeleteRoute(routeID int) error {
 }
 
 func (u *RouteService) GetRouteByID(routeID int) (*models.Route, error) {
-	route, err := u.RouteDal.GetRouteByID(routeID)
+	route, err := u.RouteDao.GetRouteByID(routeID)
 	if err == gorm.ErrRecordNotFound {
 		return nil, response.ErrRouteNotExist
 	} else if err != nil {
@@ -90,7 +90,7 @@ func (u *RouteService) GetRouteByID(routeID int) (*models.Route, error) {
 }
 
 func (r *RouteService) ListRoutes() ([]models.Route, error) {
-	routes, err := r.RouteDal.ListRoutes()
+	routes, err := r.RouteDao.ListRoutes()
 	if err == gorm.ErrRecordNotFound {
 		return nil, response.EmptyRouteList
 	} else if err != nil {

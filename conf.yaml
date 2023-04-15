@@ -1,12 +1,12 @@
 Mysql:
   Username: "root"
   Password: "123456"
-  Address: "localhost"
+  Address: "127.0.0.1"
   Port: 3306
-  DBName: "ticket_grabbing_db"
+  DBName: "ticket_grabbing"
 
 Redis:
-  Addr: "localhost:6379"
+  Addr: "127.0.0.1:6379"
 
 Kafka:
   Address: "127.0.0.1:9092"

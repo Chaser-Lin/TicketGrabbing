@@ -31,19 +31,7 @@ type TrainServiceImplement interface {
 
 // 实现列车相关服务接口的实例
 type TrainService struct {
-	TrainDal dao.TrainDaoImplement
-}
-
-func (t *TrainService) DeleteTrain(trainID string) error {
-	_, err := t.GetTrain(trainID)
-	if err != nil {
-		return err
-	}
-	err = t.TrainDal.UpdateTrainVisibility(trainID)
-	if err != nil {
-		return response.ErrDbOperation
-	}
-	return nil
+	TrainDao dao.TrainDaoImplement
 }
 
 func NewTrainServices(trainDal dao.TrainDaoImplement) TrainServiceImplement {
@@ -57,7 +45,7 @@ func (t *TrainService) AddTrain(service *AddTrainService) error {
 		Seats:   service.Seats,
 	}
 
-	if err := t.TrainDal.AddTrain(train); err != nil {
+	if err := t.TrainDao.AddTrain(train); err != nil {
 		if mysqlErr, ok := err.(*mysql.MySQLError); ok {
 			if mysqlErr.Number == 1062 { // 1062:Duplicate，重复数据
 				return response.ErrTrainExist
@@ -67,9 +55,8 @@ func (t *TrainService) AddTrain(service *AddTrainService) error {
 	}
 	return nil
 }
-
 func (t *TrainService) ListTrains() ([]models.Train, error) {
-	trains, err := t.TrainDal.ListTrains() // trains 中没有数据时 err == nil，会返回空数据切片
+	trains, err := t.TrainDao.ListTrains() // trains 中没有数据时 err == nil，会返回空数据切片
 	if err == gorm.ErrRecordNotFound {
 		return nil, response.EmptyTrainList
 	} else if err != nil {
@@ -77,13 +64,24 @@ func (t *TrainService) ListTrains() ([]models.Train, error) {
 	}
 	return trains, nil
 }
+func (t *TrainService) DeleteTrain(trainID string) error {
+	_, err := t.GetTrain(trainID)
+	if err != nil {
+		return err
+	}
+	err = t.TrainDao.UpdateTrainVisibility(trainID)
+	if err != nil {
+		return response.ErrDbOperation
+	}
+	return nil
+}
 
 //func (u *TrainService) GetTrain(services *GetTrainService) (*models.Train, error) {
 //	return u.TrainDao.GetTrain(services.TrainID)
 //}
 
 func (t *TrainService) GetTrain(trainID string) (*models.Train, error) {
-	train, err := t.TrainDal.GetTrain(trainID)
+	train, err := t.TrainDao.GetTrain(trainID)
 	if err == gorm.ErrRecordNotFound {
 		return nil, response.ErrTrainNotExist
 	} else if err != nil {

@@ -21,13 +21,13 @@ type SpikeServiceImplement interface {
 
 type SpikeService struct {
 	KafkaProducer *event.Producer
-	orderDal      dao.OrderDaoImplement
+	orderDao      dao.OrderDaoImplement
 }
 
 func NewSpikeService(producer *event.Producer) SpikeServiceImplement {
 	return &SpikeService{
 		KafkaProducer: producer,
-		orderDal:      dao.NewOrderDao(),
+		orderDao:      dao.NewOrderDao(),
 	}
 }
 

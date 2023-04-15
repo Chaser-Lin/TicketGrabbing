@@ -69,7 +69,7 @@ type TicketServiceImplement interface {
 
 // 实现列车相关服务接口的实例
 type TicketService struct {
-	TicketDal dao.TicketDaoImplement
+	TicketDao dao.TicketDaoImplement
 }
 
 func NewTicketServices(ticketDal dao.TicketDaoImplement) TicketServiceImplement {
@@ -97,7 +97,7 @@ func (t *TicketService) AddTicket(service *AddTicketService) error {
 		ArrivalTime:   service.ArrivalTime,
 	}
 
-	if err := t.TicketDal.AddTicket(ticket); err != nil {
+	if err := t.TicketDao.AddTicket(ticket); err != nil {
 		if mysqlErr, ok := err.(*mysql.MySQLError); ok {
 			if mysqlErr.Number == 1062 { // 1062:Duplicate，重复数据
 				return response.ErrTicketExist
@@ -115,7 +115,7 @@ func (t *TicketService) AddTicket(service *AddTicketService) error {
 }
 
 func (t *TicketService) GetAllTickets() ([]models.Ticket, error) {
-	tickets, err := t.TicketDal.GetAllTickets()
+	tickets, err := t.TicketDao.GetAllTickets()
 	if err == gorm.ErrRecordNotFound {
 		return nil, response.EmptyTicketList
 	} else if err != nil {
@@ -125,7 +125,7 @@ func (t *TicketService) GetAllTickets() ([]models.Ticket, error) {
 }
 
 func (t *TicketService) GetAllTicketsOnSale() ([]models.Ticket, error) {
-	tickets, err := t.TicketDal.GetAllTicketsOnSale(time.Now())
+	tickets, err := t.TicketDao.GetAllTicketsOnSale(time.Now())
 	if err == gorm.ErrRecordNotFound {
 		return nil, response.EmptyTicketList
 	} else if err != nil {
@@ -135,7 +135,7 @@ func (t *TicketService) GetAllTicketsOnSale() ([]models.Ticket, error) {
 }
 
 func (t *TicketService) ListTickets(service *ListTicketsService) ([]models.Ticket, error) {
-	tickets, err := t.TicketDal.GetTickets(service.Start, service.End, service.Date)
+	tickets, err := t.TicketDao.GetTickets(service.Start, service.End, service.Date)
 	if err == gorm.ErrRecordNotFound {
 		return nil, response.EmptyTicketList
 	} else if err != nil {
@@ -145,7 +145,7 @@ func (t *TicketService) ListTickets(service *ListTicketsService) ([]models.Ticke
 }
 
 func (t *TicketService) ListTicketsOnSale(service *ListTicketsOnSaleService) ([]models.Ticket, error) {
-	tickets, err := t.TicketDal.GetTicketsOnSale(service.Start, service.End, time.Now())
+	tickets, err := t.TicketDao.GetTicketsOnSale(service.Start, service.End, time.Now())
 	if err == gorm.ErrRecordNotFound {
 		return nil, response.EmptyOnSaleTicketList
 	} else if err != nil {
@@ -155,7 +155,7 @@ func (t *TicketService) ListTicketsOnSale(service *ListTicketsOnSaleService) ([]
 }
 
 func (t *TicketService) GetTicket(ticketID int) (*models.Ticket, error) {
-	ticket, err := t.TicketDal.GetTicket(ticketID)
+	ticket, err := t.TicketDao.GetTicket(ticketID)
 	if err == gorm.ErrRecordNotFound {
 		return nil, response.ErrTicketNotExist
 	} else if err != nil {
@@ -165,7 +165,7 @@ func (t *TicketService) GetTicket(ticketID int) (*models.Ticket, error) {
 }
 
 func (t *TicketService) SubNumberOne(ticketID int) (err error) {
-	err = t.TicketDal.UpdateStockMinusOne(ticketID)
+	err = t.TicketDao.UpdateStockMinusOne(ticketID)
 	if err != nil {
 		return response.ErrFailedSubStock
 	}
@@ -173,7 +173,7 @@ func (t *TicketService) SubNumberOne(ticketID int) (err error) {
 }
 
 func (t *TicketService) AddNumberOne(ticketID int) (err error) {
-	err = t.TicketDal.UpdateStockAddOne(ticketID)
+	err = t.TicketDao.UpdateStockAddOne(ticketID)
 	if err != nil {
 		return response.ErrFailedSubStock
 	}
@@ -191,7 +191,7 @@ func (t *TicketService) StopSellTicket(service *StopSellTicketService) error {
 	if err != nil {
 		return err
 	}
-	err = t.TicketDal.UpdateTicketEndTime(service.TicketID, time.Now())
+	err = t.TicketDao.UpdateTicketEndTime(service.TicketID, time.Now())
 	if err != nil {
 		return response.ErrDbOperation
 	}
